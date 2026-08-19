@@ -230,3 +230,43 @@ def test_face_cluster_labeling(client):
     # Label persisted; unlabeled_only hides it now.
     assert client.get("/api/faces/clusters?unlabeled_only=true").json()["clusters"] == []
     assert client.post("/api/faces/clusters/99/label", json={"name": "X"}).status_code == 404
+
+
+def test_cluster_describe_and_delete(client):
+    import numpy as np
+    import config
+    from db import store as st
+
+    m1 = upload(client, seed=80).json()["meme"]["id"]
+    m2 = upload(client, seed=81).json()["meme"]["id"]
+    wait_done(client, m1); wait_done(client, m2)
+    conn = client.app.state.conn
+    emb = np.random.rand(512).astype(np.float32).tobytes()
+    for mid in (m1, m2):
+        fid = st.insert_face(conn, mid, [0, 0, 10, 10], emb)
+        st.set_face_clusters(conn, {fid: 5})
+    client.post("/api/faces/clusters/5/label", json={"name": "Kota"})
+
+    # Describe: propagates into notes, searchable, idempotent on re-describe.
+    r = client.post(
+        "/api/faces/clusters/5/describe",
+        json={"description": "grumpy uncle villain sarcastic"},
+    ).json()
+    assert r["memes"] == 2
+    notes = client.get(f"/api/memes/{m1}").json()["meme"]["manual_notes"]
+    assert "[face #5] Kota: grumpy uncle villain sarcastic" in notes
+    hits = client.post("/api/memes/search", json={"query": "grumpy uncle"}).json()
+    assert {x["meme"]["id"] for x in hits["results"]} >= {m1, m2}
+    client.post("/api/faces/clusters/5/describe", json={"description": "updated text"})
+    notes = client.get(f"/api/memes/{m1}").json()["meme"]["manual_notes"]
+    assert notes.count("[face #5]") == 1 and "updated text" in notes
+    clusters = client.get("/api/faces/clusters?min_count=2").json()["clusters"]
+    assert clusters[0]["description"] == "updated text"
+
+    # Delete whole cluster: memes, images, crops all gone.
+    img = config.IMAGES_DIR / client.get(f"/api/memes/{m1}").json()["meme"]["image_path"]
+    res = client.delete("/api/faces/clusters/5").json()
+    assert res["deleted"] == 2
+    assert client.get(f"/api/memes/{m1}").status_code == 404
+    assert not img.exists()
+    assert client.delete("/api/faces/clusters/5").status_code == 404

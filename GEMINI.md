@@ -65,6 +65,13 @@ Key implementation decisions:
   vector search @500 memes ~2 ms.
 
 ## Changelog (most recent first)
+- 2026-08-20 (later) — Cluster curation tools: per-cluster descriptions (schema
+  v4 face_clusters table; propagated idempotently into member memes' notes as
+  "[face #N] Label: description"; FTS rebuilt to include manual_notes so
+  descriptions are keyword-searchable), delete-entire-cluster (removes all
+  member stickers + images + crops + index entries), and an Open action that
+  filters the sticker grid by cluster with a dismissible chip. bulk_delete now
+  also removes face-crop files. 39 tests.
 - 2026-08-20 — Face clustering for step-by-step context labeling: schema v3
   `faces` table (embedding blobs, cluster ids, labels), face crops served at
   /faces, scripts/face_cluster.py (extract all faces -> agglomerative

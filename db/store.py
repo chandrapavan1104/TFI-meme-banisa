@@ -31,7 +31,7 @@ _METADATA_FIELDS = {
 }
 _FTS_FIELDS = (
     "dialogue_te", "dialogue_en", "dialogue_roman",
-    "caption", "ocr_raw", "movie_title_te", "movie_title_en",
+    "caption", "ocr_raw", "movie_title_te", "movie_title_en", "manual_notes",
 )
 
 
@@ -338,14 +338,16 @@ def clusters_summary(
     unlabeled_only: bool = False,
 ) -> list[dict]:
     """Ranked clusters: sticker count, face count, label, sample face ids."""
-    where = "WHERE cluster IS NOT NULL"
+    where = "WHERE f.cluster IS NOT NULL"
     if unlabeled_only:
-        where += " AND label IS NULL"
+        where += " AND f.label IS NULL"
     rows = conn.execute(
-        f"""SELECT cluster, COUNT(*) AS faces, COUNT(DISTINCT meme_id) AS memes,
-                   MAX(label) AS label
-            FROM faces {where} GROUP BY cluster
-            HAVING COUNT(DISTINCT meme_id) >= ?
+        f"""SELECT f.cluster AS cluster, COUNT(*) AS faces,
+                   COUNT(DISTINCT f.meme_id) AS memes,
+                   MAX(f.label) AS label, MAX(fc.description) AS description
+            FROM faces f LEFT JOIN face_clusters fc ON fc.cluster = f.cluster
+            {where} GROUP BY f.cluster
+            HAVING COUNT(DISTINCT f.meme_id) >= ?
             ORDER BY memes DESC LIMIT ?""",
         (min_count, limit),
     ).fetchall()
@@ -375,8 +377,52 @@ def label_cluster(conn: sqlite3.Connection, cluster: int, label: str) -> int:
     cur = conn.execute(
         "UPDATE faces SET label = ? WHERE cluster = ?", (label, cluster)
     )
+    conn.execute(
+        "INSERT INTO face_clusters (cluster, label) VALUES (?, ?) "
+        "ON CONFLICT(cluster) DO UPDATE SET label = excluded.label, "
+        "updated_at = datetime('now')",
+        (cluster, label),
+    )
     conn.commit()
     return cur.rowcount
+
+
+@_locked
+def set_cluster_description(
+    conn: sqlite3.Connection, cluster: int, description: str
+) -> None:
+    conn.execute(
+        "INSERT INTO face_clusters (cluster, description) VALUES (?, ?) "
+        "ON CONFLICT(cluster) DO UPDATE SET description = excluded.description, "
+        "updated_at = datetime('now')",
+        (cluster, description),
+    )
+    conn.commit()
+
+
+@_locked
+def cluster_meta(conn: sqlite3.Connection, cluster: int) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM face_clusters WHERE cluster = ?", (cluster,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def delete_cluster_meta(conn: sqlite3.Connection, cluster: int) -> None:
+    conn.execute("DELETE FROM face_clusters WHERE cluster = ?", (cluster,))
+    conn.commit()
+
+
+@_locked
+def face_ids_for_memes(conn: sqlite3.Connection, meme_ids: list[str]) -> list[int]:
+    if not meme_ids:
+        return []
+    q = ",".join("?" * len(meme_ids))
+    rows = conn.execute(
+        f"SELECT id FROM faces WHERE meme_id IN ({q})", meme_ids
+    ).fetchall()
+    return [r["id"] for r in rows]
 
 
 @_locked

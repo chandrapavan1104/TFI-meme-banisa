@@ -138,6 +138,7 @@
   </div>
   <label class="chk"><input type="checkbox" id="f-untagged"> untagged only (junk candidates)</label>
   <div class="sizectl">🔍<input type="range" id="size" min="90" max="260" value="140" step="10"></div>
+  <span id="clusterchip" title="Clear face filter"></span>
   <span id="count"></span>
   <div class="hint">
     Click = select · <kbd>Shift</kbd>+click = range · <kbd>⌘A</kbd> = select all loaded ·
@@ -179,6 +180,15 @@
   .cl-form button { background: var(--accent); color: #fff; border: 0; border-radius: 8px;
     padding: .4rem .9rem; cursor: pointer; }
   .cl-form button.view { background: var(--bg); color: var(--accent); border: 1px solid var(--accent); }
+  .cl-desc { width: 100%; margin-top: .45rem; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: .4rem .6rem; font: inherit;
+    resize: vertical; min-height: 2.1rem; }
+  .cl-foot { display: flex; gap: .4rem; margin-top: .45rem; align-items: center; }
+  .cl-foot button { border: 0; border-radius: 8px; padding: .35rem .8rem; cursor: pointer; font-size: .82rem; }
+  .cl-savedesc { background: var(--accent-soft); color: var(--accent); }
+  .cl-delete { background: none; color: var(--danger); border: 1px solid var(--danger) !important; margin-left: auto; }
+  #clusterchip { display: none; background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: .25rem .7rem; font-size: .82rem; cursor: pointer; }
 </style>
 
 <div id="actionbar">
@@ -299,7 +309,11 @@ function render(reset) {
     grid.appendChild(t);
   }
   $('#count').textContent = `${grid.children.length} / ${state.total}`;
+  const chip = $('#clusterchip');
+  chip.style.display = state.cluster != null ? 'inline-block' : 'none';
+  if (state.cluster != null) chip.textContent = `🧑 face ${state.clusterLabel || '#' + state.cluster} ✕`;
 }
+$('#clusterchip').onclick = () => { state.cluster = null; reload(); };
 
 // infinite scroll
 const sentinel = document.createElement('div');
@@ -417,8 +431,13 @@ async function loadClusters() {
       <div class="cl-form">
         <input placeholder="${c.suggested ? `Suggested: ${c.suggested.name} (${c.suggested.score})` : 'Character name…'}"
                value="${c.label || (c.suggested ? c.suggested.name : '')}" list="known-actors">
-        <button class="save">Save</button>
-        <button class="view" title="Show this cluster's stickers">👁</button>
+        <button class="save">Save name</button>
+        <button class="view">Open</button>
+      </div>
+      <textarea class="cl-desc" placeholder="Description / context… e.g. 'comedian sidekick, shocked reactions, 90s films'">${c.description || ''}</textarea>
+      <div class="cl-foot">
+        <button class="cl-savedesc">Save description</button>
+        <button class="cl-delete">🗑 Delete cluster</button>
       </div>`;
     const input = card.querySelector('input');
     card.querySelector('.save').onclick = async () => {
@@ -433,10 +452,37 @@ async function loadClusters() {
         loadClusters(); loadFilterOptions();
       } catch (e) { toast('Failed: ' + e.message); }
     };
+    card.querySelector('.cl-savedesc').onclick = async () => {
+      const description = card.querySelector('.cl-desc').value.trim();
+      if (!description) return toast('Type a description first');
+      try {
+        const res = await api(`/api/faces/clusters/${c.cluster}/describe`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description }),
+        });
+        toast(`Description saved to ${res.memes} stickers ✔`);
+      } catch (e) { toast('Failed: ' + e.message); }
+    };
+    card.querySelector('.cl-delete').onclick = () => {
+      $('#c-text').textContent =
+        `Delete cluster #${c.cluster}${c.label ? ` (${c.label})` : ''} and ALL its ${c.memes} stickers?`;
+      const dlg = $('#confirm');
+      dlg.showModal();
+      $('#c-no').onclick = () => dlg.close();
+      $('#c-yes').onclick = async () => {
+        dlg.close();
+        try {
+          const res = await api(`/api/faces/clusters/${c.cluster}`, { method: 'DELETE' });
+          toast(`Deleted ${res.deleted} stickers ✔`);
+          loadClusters();
+        } catch (e) { toast('Delete failed: ' + e.message); }
+      };
+    };
     card.querySelector('.view').onclick = () => {
-      // Jump to sticker view filtered by this cluster's face.
       document.querySelector('#viewseg [data-v=stickers]').click();
-      state.cluster = c.cluster; reload();
+      state.cluster = c.cluster;
+      state.clusterLabel = c.label || `#${c.cluster}`;
+      reload();
     };
     el.appendChild(card);
   }

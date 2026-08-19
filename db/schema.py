@@ -2,7 +2,7 @@
 
 import sqlite3
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 # Migration 1: initial schema.
 _MIGRATIONS: dict[int, str] = {
@@ -88,6 +88,32 @@ _MIGRATIONS: dict[int, str] = {
     );
     CREATE INDEX IF NOT EXISTS idx_faces_meme ON faces(meme_id);
     CREATE INDEX IF NOT EXISTS idx_faces_cluster ON faces(cluster);
+    """,
+    # Migration 4: cluster-level metadata (label + free-text description), and
+    # rebuild the FTS table to include manual_notes so cluster descriptions
+    # propagated into notes become keyword-searchable.
+    4: """
+    CREATE TABLE IF NOT EXISTS face_clusters (
+        cluster     INTEGER PRIMARY KEY,
+        label       TEXT,
+        description TEXT,
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    DROP TABLE IF EXISTS memes_fts;
+    CREATE VIRTUAL TABLE memes_fts USING fts5(
+        meme_id UNINDEXED,
+        dialogue_te, dialogue_en, dialogue_roman,
+        caption, ocr_raw, movie_title_te, movie_title_en, manual_notes,
+        tokenize='unicode61'
+    );
+    INSERT INTO memes_fts (meme_id, dialogue_te, dialogue_en, dialogue_roman,
+                           caption, ocr_raw, movie_title_te, movie_title_en,
+                           manual_notes)
+        SELECT meme_id, COALESCE(dialogue_te,''), COALESCE(dialogue_en,''),
+               COALESCE(dialogue_roman,''), COALESCE(caption,''),
+               COALESCE(ocr_raw,''), COALESCE(movie_title_te,''),
+               COALESCE(movie_title_en,''), COALESCE(manual_notes,'')
+        FROM metadata;
     """,
 }
 

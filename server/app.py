@@ -232,20 +232,9 @@ class BulkDeleteRequest(BaseModel):
 
 @app.post("/api/memes/bulk_delete")
 def bulk_delete(request: Request, body: BulkDeleteRequest):
-    """Permanently delete memes: DB rows, FTS entry, Qdrant point, image file."""
-    conn = request.app.state.conn
-    deleted = 0
-    for meme_id in set(body.ids):
-        meme = store.get_meme(conn, meme_id)
-        if not meme:
-            continue
-        try:
-            qdrant_store.delete_meme(request.app.state.qclient, meme_id)
-        except Exception:
-            log.exception("Qdrant delete failed for %s", meme_id)
-        (config.IMAGES_DIR / meme["image_path"]).unlink(missing_ok=True)
-        store.delete_meme(conn, meme_id)
-        deleted += 1
+    """Permanently delete memes: DB rows, FTS entry, Qdrant point, image and
+    face-crop files."""
+    deleted = _delete_memes(request, list(set(body.ids)))
     log.info("Bulk delete: %d memes removed", deleted)
     return {"deleted": deleted}
 
@@ -426,6 +415,72 @@ def label_face_cluster(request: Request, cluster_id: int, body: LabelRequest):
         log.exception("Failed to update face references for %s", name)
     return {"cluster": cluster_id, "label": name,
             "memes": len(meme_ids), "newly_tagged": tagged}
+
+
+class DescribeRequest(BaseModel):
+    description: str = Field(min_length=1, max_length=1000)
+
+
+@app.post("/api/faces/clusters/{cluster_id}/describe")
+def describe_face_cluster(request: Request, cluster_id: int, body: DescribeRequest):
+    """Attach a description to a cluster and propagate it into every member
+    meme's notes (idempotent — re-describing replaces the previous line).
+    Notes are keyword-searchable, so descriptions improve search too."""
+    import re
+
+    conn = request.app.state.conn
+    meme_ids = store.cluster_meme_ids(conn, cluster_id)
+    if not meme_ids:
+        raise HTTPException(404, f"cluster {cluster_id} not found")
+    description = " ".join(body.description.split())
+    store.set_cluster_description(conn, cluster_id, description)
+    meta = store.cluster_meta(conn, cluster_id) or {}
+    label = meta.get("label")
+    line = f"[face #{cluster_id}] {(label + ': ') if label else ''}{description}"
+    marker = re.compile(rf"\n?\[face #{cluster_id}\][^\n]*")
+    for meme_id in meme_ids:
+        meme = store.get_meme(conn, meme_id)
+        if not meme:
+            continue
+        notes = marker.sub("", meme.get("manual_notes") or "")
+        notes = (notes.rstrip() + "\n" + line).strip()
+        store.update_metadata(conn, meme_id, {"manual_notes": notes})
+    return {"cluster": cluster_id, "description": description, "memes": len(meme_ids)}
+
+
+def _delete_memes(request: Request, meme_ids: list[str]) -> int:
+    """Shared deletion: Qdrant point, image file, face crops, DB rows."""
+    conn = request.app.state.conn
+    crop_ids = store.face_ids_for_memes(conn, meme_ids)
+    deleted = 0
+    for meme_id in meme_ids:
+        meme = store.get_meme(conn, meme_id)
+        if not meme:
+            continue
+        try:
+            qdrant_store.delete_meme(request.app.state.qclient, meme_id)
+        except Exception:
+            log.exception("Qdrant delete failed for %s", meme_id)
+        (config.IMAGES_DIR / meme["image_path"]).unlink(missing_ok=True)
+        store.delete_meme(conn, meme_id)  # faces rows cascade
+        deleted += 1
+    for fid in crop_ids:
+        (config.FACES_DIR / f"{fid}.jpg").unlink(missing_ok=True)
+    return deleted
+
+
+@app.delete("/api/faces/clusters/{cluster_id}")
+def delete_face_cluster(request: Request, cluster_id: int):
+    """Delete a whole cluster: every sticker containing this face is removed
+    permanently (image, metadata, index entries), plus the cluster record."""
+    conn = request.app.state.conn
+    meme_ids = store.cluster_meme_ids(conn, cluster_id)
+    if not meme_ids:
+        raise HTTPException(404, f"cluster {cluster_id} not found")
+    deleted = _delete_memes(request, meme_ids)
+    store.delete_cluster_meta(conn, cluster_id)
+    log.info("Deleted cluster %d (%d memes)", cluster_id, deleted)
+    return {"cluster": cluster_id, "deleted": deleted}
 
 
 class RateRequest(BaseModel):
