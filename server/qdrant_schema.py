@@ -1,4 +1,4 @@
-"""Qdrant collection schema for TFI-banisa.
+"""Qdrant collection schema for TFI-meme-banisa.
 
 One point per meme, with up to three named 768-dim vectors (a point may have
 any subset — e.g. caption only, until dialogue is added):

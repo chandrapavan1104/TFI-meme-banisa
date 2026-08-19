@@ -1,5 +1,5 @@
 #!/bin/bash
-# TFI-banisa one-shot setup: venv, dependencies, models, Tesseract, directories.
+# TFI-meme-banisa one-shot setup: venv, dependencies, models, Tesseract, directories.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

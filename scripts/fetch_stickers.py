@@ -2,7 +2,7 @@
 
 Searches sticker.ly (public app API) for Telugu movie/actor keywords, downloads
 each pack's stickers, infers movie/actor metadata from the pack name, and
-uploads everything to the local TFI-banisa API — which then runs the normal
+uploads everything to the local TFI-meme-banisa API — which then runs the normal
 caption/OCR/embed pipeline. Progress and dedupe state persist in
 ~/.tfibanisa/fetch_state.json, so re-running only fetches new content.
 

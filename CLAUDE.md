@@ -1,4 +1,4 @@
-# Project Context — TFI-banisa
+# Project Context — TFI-meme-banisa
 
 > UNIVERSAL CONTEXT for all AI agents (Claude, Codex, Gemini).
 > This file is mirrored to AGENTS.md and GEMINI.md — keep it as the
@@ -8,7 +8,7 @@
 > "Current State" and "Changelog" sections below before you finish.
 
 ## Overview
-**TFI-banisa** — a personal Telugu movie meme/sticker store with semantic search. Users describe a scene ("actor crying in rain") and retrieve matching memes from a vector database, bypassing the browse-by-category limits of existing Telugu sticker apps (Sticker Babai, Stickers Raja).
+**TFI-meme-banisa** — a personal Telugu movie meme/sticker store with semantic search. Users describe a scene ("actor crying in rain") and retrieve matching memes from a vector database, bypassing the browse-by-category limits of existing Telugu sticker apps (Sticker Babai, Stickers Raja).
 
 Combines **image captioning** (Florence-2) + **OCR** (Tesseract, Telugu) + **multilingual embeddings** (Vyakyarth-1-Indic) + **self-hosted vector DB** (Qdrant) to deliver semantic search with zero cloud cost and full privacy.
 

@@ -1,4 +1,4 @@
-# GitHub Setup for TFI-banisa
+# GitHub Setup for TFI-meme-banisa
 
 ## Quick Start
 
@@ -16,10 +16,10 @@
 Replace `YOUR_USERNAME` with your GitHub username:
 
 ```bash
-cd ~/Projects/TFI-banisa
+cd ~/Projects/TFI-meme-banisa
 
 # Add remote
-git remote add origin https://github.com/YOUR_USERNAME/tfi-banisa.git
+git remote add origin https://github.com/chandrapavan1104/TFI-meme-banisa.git
 
 # Rename branch if needed (GitHub defaults to 'main')
 git branch -M main
@@ -30,7 +30,7 @@ git push -u origin main
 
 ### 3. Verify
 
-Visit `https://github.com/YOUR_USERNAME/tfi-banisa` in your browser. You should see:
+Visit `https://github.com/chandrapavan1104/TFI-meme-banisa` in your browser. You should see:
 - ✅ CLAUDE.md, AGENTS.md, GEMINI.md
 - ✅ tasks.md (comprehensive task list)
 - ✅ Initial commit with 4 files
@@ -68,7 +68,7 @@ Example issue body:
 ### Create Project Board (Optional)
 
 1. Go to repo → **Projects** tab
-2. Create **Project**: "TFI-banisa Implementation"
+2. Create **Project**: "TFI-meme-banisa Implementation"
 3. Add columns: **To Do**, **In Progress**, **Done**
 4. Add cards from Issues (or manually track Phases)
 
@@ -99,10 +99,10 @@ git push origin feature/phase-2-core-api
 
 ## Documentation URLs (Once Pushed)
 
-- **Repository:** https://github.com/YOUR_USERNAME/tfi-banisa
-- **Issues:** https://github.com/YOUR_USERNAME/tfi-banisa/issues
-- **Project Board:** https://github.com/YOUR_USERNAME/tfi-banisa/projects
-- **README (once written):** https://github.com/YOUR_USERNAME/tfi-banisa#readme
+- **Repository:** https://github.com/chandrapavan1104/TFI-meme-banisa
+- **Issues:** https://github.com/chandrapavan1104/TFI-meme-banisa/issues
+- **Project Board:** https://github.com/chandrapavan1104/TFI-meme-banisa/projects
+- **README (once written):** https://github.com/chandrapavan1104/TFI-meme-banisa#readme
 
 ## Next Steps
 
@@ -120,6 +120,6 @@ git push origin feature/phase-2-core-api
 
 ---
 
-**Repo created locally:** `/Users/dark_mamba/Projects/TFI-banisa`
+**Repo created locally:** `/Users/dark_mamba/Projects/TFI-meme-banisa`
 **Status:** Ready to push to GitHub
 **Commit hash:** (output from git commit above)

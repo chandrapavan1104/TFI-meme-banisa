@@ -1,4 +1,4 @@
-# TFI-banisa
+# TFI-meme-banisa
 
 A personal **Telugu movie meme/sticker store with semantic search**. Describe a
 scene — *"actor crying in rain"*, *"చిరంజీవి కన్నీళ్లు"*, or Roman-script

@@ -1,4 +1,4 @@
-"""SQLite schema and migrations for TFI-banisa metadata."""
+"""SQLite schema and migrations for TFI-meme-banisa metadata."""
 
 import sqlite3
 

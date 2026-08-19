@@ -1,4 +1,4 @@
-"""TFI-banisa FastAPI server: upload, search, edit, and browse Telugu memes."""
+"""TFI-meme-banisa FastAPI server: upload, search, edit, and browse Telugu memes."""
 
 import hashlib
 import io
@@ -56,14 +56,14 @@ async def lifespan(app: FastAPI):
     app.state.jobs = jobs_mod.JobQueue(app.state.conn, app.state.qclient)
     app.state.jobs.start()
     app.state.jobs.requeue_unfinished()
-    log.info("TFI-banisa started (qdrant mode=%s)", config.QDRANT_MODE)
+    log.info("TFI-meme-banisa started (qdrant mode=%s)", config.QDRANT_MODE)
     yield
     await app.state.jobs.shutdown()
     app.state.conn.close()
-    log.info("TFI-banisa stopped")
+    log.info("TFI-meme-banisa stopped")
 
 
-app = FastAPI(title="TFI-banisa", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="TFI-meme-banisa", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

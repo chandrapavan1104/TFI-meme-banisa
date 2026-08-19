@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start the TFI-banisa server (http://localhost:8000).
+# Start the TFI-meme-banisa server (http://localhost:8000).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -f .env ] && set -a && source .env && set +a

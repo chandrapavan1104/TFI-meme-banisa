@@ -1,4 +1,4 @@
-"""Environment configuration for TFI-banisa.
+"""Environment configuration for TFI-meme-banisa.
 
 All settings come from environment variables (or a .env file loaded by the
 shell) with sensible local defaults. Data lives under ~/.tfibanisa/.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install TFI-banisa as a launchd user service (starts on login, restarts on crash).
+# Install TFI-meme-banisa as a launchd user service (starts on login, restarts on crash).
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PLIST_DST="$HOME/Library/LaunchAgents/com.tfibanisa.server.plist"
