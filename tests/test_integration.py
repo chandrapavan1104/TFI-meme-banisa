@@ -201,3 +201,32 @@ def test_bulk_delete(client):
 def test_admin_page_served(client):
     r = client.get("/admin")
     assert r.status_code == 200 and "Admin" in r.text
+
+
+def test_face_cluster_labeling(client):
+    import numpy as np
+    from db import store as st
+
+    r = upload(client, seed=70)
+    m1 = r.json()["meme"]["id"]
+    m2 = upload(client, seed=71).json()["meme"]["id"]
+    wait_done(client, m1); wait_done(client, m2)
+
+    conn = client.app.state.conn
+    emb = np.random.rand(512).astype(np.float32).tobytes()
+    for mid in (m1, m2):
+        fid = st.insert_face(conn, mid, [0, 0, 10, 10], emb)
+        st.set_face_clusters(conn, {fid: 1})
+
+    clusters = client.get("/api/faces/clusters?min_count=2").json()["clusters"]
+    assert clusters and clusters[0]["cluster"] == 1 and clusters[0]["memes"] == 2
+    assert clusters[0]["label"] is None
+
+    res = client.post("/api/faces/clusters/1/label", json={"name": "Sunil"}).json()
+    assert res["memes"] == 2 and res["newly_tagged"] == 2
+    assert "Sunil" in client.get(f"/api/memes/{m1}").json()["meme"]["actors"]
+    # Cluster filter on the list endpoint.
+    assert client.get("/api/memes?cluster=1").json()["total"] == 2
+    # Label persisted; unlabeled_only hides it now.
+    assert client.get("/api/faces/clusters?unlabeled_only=true").json()["clusters"] == []
+    assert client.post("/api/faces/clusters/99/label", json={"name": "X"}).status_code == 404

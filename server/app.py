@@ -2,6 +2,7 @@
 
 import hashlib
 import io
+import json
 import logging
 import logging.handlers
 import time
@@ -215,11 +216,12 @@ def list_memes(
     pack: str | None = None,
     actor: str | None = None,
     untagged: bool = False,
+    cluster: int | None = None,
 ):
     rows, total = store.list_memes(
         request.app.state.conn, limit=min(limit, 200), offset=offset,
         verified=verified, animated=animated, pack=pack,
-        actor=actor, untagged=untagged,
+        actor=actor, untagged=untagged, cluster=cluster,
     )
     return {"memes": [_meme_out(m) for m in rows], "total": total}
 
@@ -335,6 +337,97 @@ def auto_tag_meme(request: Request, meme_id: str, body: AutoTagRequest):
     return {"meme": _meme_out(meme)}
 
 
+# --- Face clusters (categorize + name characters) ---------------------------
+
+@app.get("/api/faces/clusters")
+def face_clusters(
+    request: Request,
+    min_count: int = 2,
+    limit: int = 100,
+    unlabeled_only: bool = False,
+):
+    clusters = store.clusters_summary(
+        request.app.state.conn, min_count=min_count,
+        limit=min(limit, 300), unlabeled_only=unlabeled_only,
+    )
+    # Suggest names by matching each cluster's centroid against known refs.
+    refs = {}
+    try:
+        from collectors import faces as faces_mod
+
+        if faces_mod.refs_available():
+            refs = faces_mod.load_refs()
+    except Exception:
+        pass
+    for c in clusters:
+        c["sample_urls"] = [f"/faces/{fid}.jpg" for fid in c.pop("samples")]
+        c["suggested"] = None
+        if refs and not c["label"]:
+            import numpy as np
+
+            embs = store.cluster_embeddings(
+                request.app.state.conn, c["cluster"], limit=8
+            )
+            centroid = np.stack(
+                [np.frombuffer(b, dtype=np.float32) for b in embs]
+            ).mean(axis=0)
+            centroid /= np.linalg.norm(centroid)
+            best_name, best_sim = None, 0.40
+            for actor, mat in refs.items():
+                sim = float(np.max(mat @ centroid))
+                if sim >= best_sim:
+                    best_name, best_sim = actor, sim
+            if best_name:
+                c["suggested"] = {"name": best_name, "score": round(best_sim, 2)}
+    return {"clusters": clusters}
+
+
+class LabelRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+@app.post("/api/faces/clusters/{cluster_id}/label")
+def label_face_cluster(request: Request, cluster_id: int, body: LabelRequest):
+    """Name a face cluster: tags every sticker containing that face, and
+    teaches the recognizer (adds the cluster's faces as references)."""
+    conn = request.app.state.conn
+    name = body.name.strip()
+    meme_ids = store.cluster_meme_ids(conn, cluster_id)
+    if not meme_ids:
+        raise HTTPException(404, f"cluster {cluster_id} not found")
+    store.label_cluster(conn, cluster_id, name)
+    tagged = 0
+    for meme_id in meme_ids:
+        meme = store.get_meme(conn, meme_id)
+        if not meme:
+            continue
+        merged = sorted(set(meme.get("actors") or []) | {name})
+        if merged != sorted(meme.get("actors") or []):
+            store.update_metadata(conn, meme_id, {"actors": merged})
+            request.app.state.jobs.enqueue(meme_id, jobs_mod.RE_EMBED)
+            tagged += 1
+    # Teach the recognizer: fold this cluster's faces into the references.
+    try:
+        from collectors import faces as faces_mod
+        import numpy as np
+
+        refs = (
+            json.loads(faces_mod.REFS_PATH.read_text())
+            if faces_mod.REFS_PATH.exists() else {}
+        )
+        embs = [
+            np.frombuffer(b, dtype=np.float32).tolist()
+            for b in store.cluster_embeddings(conn, cluster_id, limit=5)
+        ]
+        refs.setdefault(name, [])
+        refs[name] = (refs[name] + embs)[:16]
+        faces_mod.save_refs(refs)
+    except Exception:
+        log.exception("Failed to update face references for %s", name)
+    return {"cluster": cluster_id, "label": name,
+            "memes": len(meme_ids), "newly_tagged": tagged}
+
+
 class RateRequest(BaseModel):
     rating: int = Field(ge=1, le=5)
 
@@ -355,6 +448,7 @@ def meme_status(request: Request, meme_id: str):
 # --- Static files -----------------------------------------------------------
 
 app.mount("/images", StaticFiles(directory=str(config.IMAGES_DIR), check_dir=False), name="images")
+app.mount("/faces", StaticFiles(directory=str(config.FACES_DIR), check_dir=False), name="faces")
 
 
 @app.get("/", include_in_schema=False)

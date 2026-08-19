@@ -126,6 +126,10 @@
 
 <div class="bar">
   <span class="title">🛠 Admin <a href="/">← store</a></span>
+  <div class="seg" id="viewseg">
+    <button data-v="stickers" class="on">Stickers</button>
+    <button data-v="faces">🧑 Faces</button>
+  </div>
   <input id="q" type="search" placeholder="Search…">
   <select id="f-pack"><option value="">All packs</option></select>
   <select id="f-actor"><option value="">All actors</option></select>
@@ -141,7 +145,41 @@
   </div>
 </div>
 
-<main><div id="grid"></div></main>
+<main>
+  <div id="grid"></div>
+  <div id="facesview" style="display:none">
+    <p class="meta" style="color:var(--muted);margin:.2rem 0 .8rem">
+      Every group below is one recurring face, ranked by how many stickers it appears in.
+      Type the character's name and hit Save — all their stickers get tagged and the
+      recognizer learns the face for future uploads.
+      <label class="chk" style="display:inline-flex;margin-left:.6rem">
+        <input type="checkbox" id="fc-unlabeled" checked> unnamed only
+      </label>
+    </p>
+    <div id="clusters"></div>
+  </div>
+</main>
+<style>
+  #clusters { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+  .cl-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: .7rem; box-shadow: var(--shadow);
+  }
+  .cl-head { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .5rem; }
+  .cl-rank { font-weight: 800; color: var(--accent); }
+  .cl-count { color: var(--muted); font-size: .82rem; }
+  .cl-label { margin-left: auto; font-size: .8rem; background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: .1rem .6rem; }
+  .cl-faces { display: flex; gap: .4rem; margin-bottom: .55rem; }
+  .cl-faces img { width: 52px; height: 52px; object-fit: cover; border-radius: 10px;
+    border: 1px solid var(--border); cursor: pointer; }
+  .cl-form { display: flex; gap: .4rem; }
+  .cl-form input { flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: .4rem .6rem; }
+  .cl-form button { background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: .4rem .9rem; cursor: pointer; }
+  .cl-form button.view { background: var(--bg); color: var(--accent); border: 1px solid var(--accent); }
+</style>
 
 <div id="actionbar">
   <span class="n"><span id="ab-n">0</span> selected</span>
@@ -182,7 +220,7 @@ const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add
 const state = {
   memes: [], total: 0, offset: 0, loading: false,
   sel: new Set(), lastClicked: null, current: null,
-  animated: null, pack: '', actor: '', untagged: false, q: '',
+  animated: null, pack: '', actor: '', untagged: false, q: '', cluster: null,
 };
 const PAGE = 100;
 
@@ -193,9 +231,9 @@ async function loadFilterOptions() {
     `<option value="${p.name.replaceAll('"','&quot;')}">${p.name} (${p.count})</option>`);
   for (const a of actors) $('#f-actor').insertAdjacentHTML('beforeend', `<option>${a}</option>`);
 }
-$('#f-pack').onchange = (e) => { state.pack = e.target.value; reload(); };
-$('#f-actor').onchange = (e) => { state.actor = e.target.value; reload(); };
-$('#f-untagged').onchange = (e) => { state.untagged = e.target.checked; reload(); };
+$('#f-pack').onchange = (e) => { state.pack = e.target.value; state.cluster = null; reload(); };
+$('#f-actor').onchange = (e) => { state.actor = e.target.value; state.cluster = null; reload(); };
+$('#f-untagged').onchange = (e) => { state.untagged = e.target.checked; state.cluster = null; reload(); };
 document.querySelectorAll('#f-type button').forEach((b) => b.onclick = () => {
   document.querySelectorAll('#f-type button').forEach((x) => x.classList.remove('on'));
   b.classList.add('on');
@@ -228,6 +266,7 @@ async function loadPage(reset) {
       if (state.pack) url += `&pack=${encodeURIComponent(state.pack)}`;
       if (state.actor) url += `&actor=${encodeURIComponent(state.actor)}`;
       if (state.untagged) url += `&untagged=true`;
+      if (state.cluster != null) url += `&cluster=${state.cluster}`;
       const res = await api(url);
       state.memes = state.memes.concat(res.memes);
       state.total = res.total;
@@ -345,6 +384,71 @@ function openLightbox(m) {
 }
 $('#lb-close').onclick = () => $('#lightbox').close();
 $('#lb-del').onclick = () => { $('#lightbox').close(); confirmDelete([state.current.id]); };
+
+// ---------- faces view (cluster naming) ----------
+document.querySelectorAll('#viewseg button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('#viewseg button').forEach((x) => x.classList.remove('on'));
+  b.classList.add('on');
+  const facesMode = b.dataset.v === 'faces';
+  $('#facesview').style.display = facesMode ? 'block' : 'none';
+  $('#grid').style.display = facesMode ? 'none' : 'grid';
+  if (facesMode) loadClusters();
+});
+$('#fc-unlabeled').onchange = () => loadClusters();
+
+async function loadClusters() {
+  const unl = $('#fc-unlabeled').checked;
+  const { clusters } = await api(`/api/faces/clusters?min_count=2&limit=200&unlabeled_only=${unl}`);
+  const el = $('#clusters'); el.innerHTML = '';
+  if (!clusters.length) {
+    el.innerHTML = '<p style="color:var(--muted)">No face clusters yet — run scripts/face_cluster.py first, or uncheck "unnamed only".</p>';
+    return;
+  }
+  for (const c of clusters) {
+    const card = document.createElement('div');
+    card.className = 'cl-card';
+    card.innerHTML = `
+      <div class="cl-head">
+        <span class="cl-rank">#${c.cluster}</span>
+        <span class="cl-count">${c.memes} stickers · ${c.faces} faces</span>
+        ${c.label ? `<span class="cl-label">✔ ${c.label}</span>` : ''}
+      </div>
+      <div class="cl-faces">${c.sample_urls.map((u) => `<img src="${u}" loading="lazy">`).join('')}</div>
+      <div class="cl-form">
+        <input placeholder="${c.suggested ? `Suggested: ${c.suggested.name} (${c.suggested.score})` : 'Character name…'}"
+               value="${c.label || (c.suggested ? c.suggested.name : '')}" list="known-actors">
+        <button class="save">Save</button>
+        <button class="view" title="Show this cluster's stickers">👁</button>
+      </div>`;
+    const input = card.querySelector('input');
+    card.querySelector('.save').onclick = async () => {
+      const name = input.value.trim();
+      if (!name) return toast('Type a name first');
+      try {
+        const res = await api(`/api/faces/clusters/${c.cluster}/label`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        toast(`Tagged ${res.memes} stickers as ${name} ✔`);
+        loadClusters(); loadFilterOptions();
+      } catch (e) { toast('Failed: ' + e.message); }
+    };
+    card.querySelector('.view').onclick = () => {
+      // Jump to sticker view filtered by this cluster's face.
+      document.querySelector('#viewseg [data-v=stickers]').click();
+      state.cluster = c.cluster; reload();
+    };
+    el.appendChild(card);
+  }
+  // datalist of known names for quick reuse
+  if (!document.getElementById('known-actors')) {
+    const dl = document.createElement('datalist'); dl.id = 'known-actors';
+    document.body.appendChild(dl);
+    api('/api/actors').then(({ actors }) => {
+      dl.innerHTML = actors.map((a) => `<option value="${a}">`).join('');
+    });
+  }
+}
 
 loadFilterOptions();
 loadPage(true);

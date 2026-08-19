@@ -90,6 +90,7 @@ def list_memes(
     pack: str | None = None,
     actor: str | None = None,
     untagged: bool = False,
+    cluster: int | None = None,
 ) -> tuple[list[dict], int]:
     """Paginated meme list, newest first. Returns (rows, total_count)."""
     clauses, params = [], []
@@ -110,6 +111,11 @@ def list_memes(
             "md.actors = '[]' AND COALESCE(md.dialogue_te,'') = '' "
             "AND COALESCE(md.ocr_raw,'') = ''"
         )
+    if cluster is not None:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM faces f WHERE f.meme_id = m.id AND f.cluster = ?)"
+        )
+        params.append(cluster)
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
     total = conn.execute(
         f"SELECT COUNT(*) FROM memes m JOIN metadata md ON md.meme_id = m.id {where}",
@@ -295,6 +301,91 @@ def jobs_for_meme(conn: sqlite3.Connection, meme_id: str) -> list[dict]:
         "SELECT * FROM jobs WHERE meme_id = ? ORDER BY id", (meme_id,)
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+# --- Faces (clustering + labeling) -------------------------------------------
+
+@_locked
+def insert_face(
+    conn: sqlite3.Connection, meme_id: str, bbox: list[float], embedding: bytes
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO faces (meme_id, bbox, embedding) VALUES (?, ?, ?)",
+        (meme_id, json.dumps(bbox), embedding),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+@_locked
+def all_faces(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute("SELECT id, meme_id, embedding, cluster, label FROM faces").fetchall()
+    return [dict(r) for r in rows]
+
+
+@_locked
+def set_face_clusters(conn: sqlite3.Connection, assignments: dict[int, int | None]) -> None:
+    conn.executemany(
+        "UPDATE faces SET cluster = ? WHERE id = ?",
+        [(c, fid) for fid, c in assignments.items()],
+    )
+    conn.commit()
+
+
+@_locked
+def clusters_summary(
+    conn: sqlite3.Connection, min_count: int = 2, limit: int = 100,
+    unlabeled_only: bool = False,
+) -> list[dict]:
+    """Ranked clusters: sticker count, face count, label, sample face ids."""
+    where = "WHERE cluster IS NOT NULL"
+    if unlabeled_only:
+        where += " AND label IS NULL"
+    rows = conn.execute(
+        f"""SELECT cluster, COUNT(*) AS faces, COUNT(DISTINCT meme_id) AS memes,
+                   MAX(label) AS label
+            FROM faces {where} GROUP BY cluster
+            HAVING COUNT(DISTINCT meme_id) >= ?
+            ORDER BY memes DESC LIMIT ?""",
+        (min_count, limit),
+    ).fetchall()
+    out = []
+    for r in rows:
+        samples = [
+            row["id"]
+            for row in conn.execute(
+                "SELECT id FROM faces WHERE cluster = ? ORDER BY id LIMIT 6",
+                (r["cluster"],),
+            )
+        ]
+        out.append({**dict(r), "samples": samples})
+    return out
+
+
+@_locked
+def cluster_meme_ids(conn: sqlite3.Connection, cluster: int) -> list[str]:
+    rows = conn.execute(
+        "SELECT DISTINCT meme_id FROM faces WHERE cluster = ?", (cluster,)
+    ).fetchall()
+    return [r["meme_id"] for r in rows]
+
+
+@_locked
+def label_cluster(conn: sqlite3.Connection, cluster: int, label: str) -> int:
+    cur = conn.execute(
+        "UPDATE faces SET label = ? WHERE cluster = ?", (label, cluster)
+    )
+    conn.commit()
+    return cur.rowcount
+
+
+@_locked
+def cluster_embeddings(conn: sqlite3.Connection, cluster: int, limit: int = 5) -> list[bytes]:
+    rows = conn.execute(
+        "SELECT embedding FROM faces WHERE cluster = ? ORDER BY id LIMIT ?",
+        (cluster, limit),
+    ).fetchall()
+    return [r["embedding"] for r in rows]
 
 
 # --- Embeddings log ---------------------------------------------------------

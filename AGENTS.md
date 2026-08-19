@@ -65,6 +65,16 @@ Key implementation decisions:
   vector search @500 memes ~2 ms.
 
 ## Changelog (most recent first)
+- 2026-08-20 — Face clustering for step-by-step context labeling: schema v3
+  `faces` table (embedding blobs, cluster ids, labels), face crops served at
+  /faces, scripts/face_cluster.py (extract all faces -> agglomerative
+  clustering, avg-linkage cosine 0.5 -> frequency-ranked clusters; 3,999 faces
+  -> 484 clusters, resumable via face_scan.json). Admin "Faces" tab shows
+  ranked cluster cards with sample crops + suggested names (centroid vs refs);
+  naming a cluster tags all its stickers, stores the label, and folds the
+  cluster's embeddings into face_refs.json so the recognizer learns. New
+  GET /api/faces/clusters + POST /api/faces/clusters/{id}/label + cluster
+  filter on the meme list. 38 tests.
 - 2026-08-19 (late) — Admin curation page at /admin (laptop-optimized): dense
   uniform grid with adjustable tile size, filters (pack/actor/type/search +
   "untagged only" junk-candidate filter — matches memes with no face, dialogue,

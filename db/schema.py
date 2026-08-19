@@ -2,7 +2,7 @@
 
 import sqlite3
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # Migration 1: initial schema.
 _MIGRATIONS: dict[int, str] = {
@@ -72,6 +72,22 @@ _MIGRATIONS: dict[int, str] = {
     # static image memes, so the UI/API can filter them.
     2: """
     ALTER TABLE memes ADD COLUMN animated INTEGER NOT NULL DEFAULT 0;
+    """,
+    # Migration 3: detected faces for clustering + labeling. One row per face
+    # found in a meme; embedding is a float32 blob (512 dims, L2-normalized);
+    # cluster is assigned by scripts/face_cluster.py; label is the human-given
+    # character name.
+    3: """
+    CREATE TABLE IF NOT EXISTS faces (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        meme_id   TEXT NOT NULL REFERENCES memes(id) ON DELETE CASCADE,
+        bbox      TEXT NOT NULL,            -- JSON [x1,y1,x2,y2]
+        embedding BLOB NOT NULL,            -- float32[512]
+        cluster   INTEGER,                  -- NULL until clustered
+        label     TEXT                      -- character name once assigned
+    );
+    CREATE INDEX IF NOT EXISTS idx_faces_meme ON faces(meme_id);
+    CREATE INDEX IF NOT EXISTS idx_faces_cluster ON faces(cluster);
     """,
 }
 

@@ -15,6 +15,7 @@ def _env(name: str, default: str) -> str:
 # --- Storage ---------------------------------------------------------------
 HOME_DIR = Path(_env("TFIBANISA_HOME", str(Path.home() / ".tfibanisa"))).expanduser()
 IMAGES_DIR = HOME_DIR / "images"
+FACES_DIR = HOME_DIR / "faces"  # cropped face thumbnails for the admin UI
 LOGS_DIR = HOME_DIR / "logs"
 DB_PATH = HOME_DIR / "tfibanisa.db"
 
@@ -46,5 +47,5 @@ JOB_MAX_RETRIES = int(_env("JOB_MAX_RETRIES", "2"))
 
 def ensure_dirs() -> None:
     """Create the data directories if they don't exist."""
-    for d in (HOME_DIR, IMAGES_DIR, LOGS_DIR):
+    for d in (HOME_DIR, IMAGES_DIR, FACES_DIR, LOGS_DIR):
         d.mkdir(parents=True, exist_ok=True)

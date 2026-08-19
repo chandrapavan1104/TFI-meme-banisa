@@ -78,8 +78,8 @@ def save_refs(refs: dict[str, list[list[float]]]) -> None:
     REFS_PATH.write_text(json.dumps(refs))
 
 
-def face_embeddings(image_path: str) -> list[np.ndarray]:
-    """Detect faces; return one L2-normalized 512-dim embedding per face.
+def detect_faces(image_path: str) -> list[tuple[list[float], np.ndarray]]:
+    """Detect faces; return [(bbox [x1,y1,x2,y2], normalized 512-dim embedding)].
 
     Animated images use their first frame. Returns [] when no face is found.
     """
@@ -90,8 +90,15 @@ def face_embeddings(image_path: str) -> list[np.ndarray]:
     for f in faces:
         emb = f.normed_embedding
         if emb is not None:
-            out.append(np.asarray(emb, dtype=np.float32))
+            out.append(
+                ([float(v) for v in f.bbox], np.asarray(emb, dtype=np.float32))
+            )
     return out
+
+
+def face_embeddings(image_path: str) -> list[np.ndarray]:
+    """Embeddings only (see detect_faces)."""
+    return [emb for _, emb in detect_faces(image_path)]
 
 
 def match_actors(
