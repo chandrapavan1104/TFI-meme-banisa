@@ -25,11 +25,12 @@ def _locked(fn):
 
 _JSON_FIELDS = {"actors", "emotion_tags", "context_tags"}
 _METADATA_FIELDS = {
-    "movie_title_te", "movie_title_en", "actors",
+    "movie_title_te", "movie_title_en", "actors", "description",
     "dialogue_te", "dialogue_en", "dialogue_roman",
     "emotion_tags", "context_tags", "caption", "ocr_raw", "manual_notes",
 }
 _FTS_FIELDS = (
+    "description",
     "dialogue_te", "dialogue_en", "dialogue_roman",
     "caption", "ocr_raw", "movie_title_te", "movie_title_en", "manual_notes",
 )
@@ -70,9 +71,9 @@ def create_meme(
 def get_meme(conn: sqlite3.Connection, meme_id: str) -> dict | None:
     row = conn.execute(
         """SELECT m.*, md.movie_title_te, md.movie_title_en, md.actors,
-                  md.dialogue_te, md.dialogue_en, md.dialogue_roman,
-                  md.emotion_tags, md.context_tags, md.caption, md.ocr_raw,
-                  md.manual_notes
+                  md.description, md.dialogue_te, md.dialogue_en,
+                  md.dialogue_roman, md.emotion_tags, md.context_tags,
+                  md.caption, md.ocr_raw, md.manual_notes
            FROM memes m JOIN metadata md ON md.meme_id = m.id
            WHERE m.id = ?""",
         (meme_id,),
@@ -123,9 +124,9 @@ def list_memes(
     ).fetchone()[0]
     rows = conn.execute(
         f"""SELECT m.*, md.movie_title_te, md.movie_title_en, md.actors,
-                   md.dialogue_te, md.dialogue_en, md.dialogue_roman,
-                   md.emotion_tags, md.context_tags, md.caption, md.ocr_raw,
-                   md.manual_notes
+                   md.description, md.dialogue_te, md.dialogue_en,
+                   md.dialogue_roman, md.emotion_tags, md.context_tags,
+                   md.caption, md.ocr_raw, md.manual_notes
             FROM memes m JOIN metadata md ON md.meme_id = m.id
             {where} ORDER BY m.upload_date DESC, m.id LIMIT ? OFFSET ?""",
         (*params, limit, offset),

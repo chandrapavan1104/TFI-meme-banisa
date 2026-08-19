@@ -247,19 +247,19 @@ def test_cluster_describe_and_delete(client):
         st.set_face_clusters(conn, {fid: 5})
     client.post("/api/faces/clusters/5/label", json={"name": "Kota"})
 
-    # Describe: propagates into notes, searchable, idempotent on re-describe.
+    # Describe: fills the description field, searchable, idempotent on re-describe.
     r = client.post(
         "/api/faces/clusters/5/describe",
         json={"description": "grumpy uncle villain sarcastic"},
     ).json()
     assert r["memes"] == 2
-    notes = client.get(f"/api/memes/{m1}").json()["meme"]["manual_notes"]
-    assert "[face #5] Kota: grumpy uncle villain sarcastic" in notes
+    desc = client.get(f"/api/memes/{m1}").json()["meme"]["description"]
+    assert "[face #5] Kota: grumpy uncle villain sarcastic" in desc
     hits = client.post("/api/memes/search", json={"query": "grumpy uncle"}).json()
     assert {x["meme"]["id"] for x in hits["results"]} >= {m1, m2}
     client.post("/api/faces/clusters/5/describe", json={"description": "updated text"})
-    notes = client.get(f"/api/memes/{m1}").json()["meme"]["manual_notes"]
-    assert notes.count("[face #5]") == 1 and "updated text" in notes
+    desc = client.get(f"/api/memes/{m1}").json()["meme"]["description"]
+    assert desc.count("[face #5]") == 1 and "updated text" in desc
     clusters = client.get("/api/faces/clusters?min_count=2").json()["clusters"]
     assert clusters[0]["description"] == "updated text"
 
@@ -270,3 +270,27 @@ def test_cluster_describe_and_delete(client):
     assert client.get(f"/api/memes/{m1}").status_code == 404
     assert not img.exists()
     assert client.delete("/api/faces/clusters/5").status_code == 404
+
+
+def test_description_outranks_caption(client):
+    """A curated description should beat an auto-caption for the same query."""
+    # m_desc: description mentions the concept; caption is the generic fake.
+    m_desc = upload(client, seed=90, description="man dancing at a wedding party").json()["meme"]["id"]
+    m_plain = upload(client, seed=91).json()["meme"]["id"]
+    wait_done(client, m_desc); wait_done(client, m_plain)
+
+    r = client.post(
+        "/api/memes/search", json={"query": "dancing at a wedding party", "limit": 5}
+    ).json()
+    ids = [x["meme"]["id"] for x in r["results"]]
+    assert ids[0] == m_desc
+    assert "description" in r["results"][0]["reasons"]["matched_fields"]
+
+
+def test_edit_description_reembeds(client):
+    m = upload(client, seed=92).json()["meme"]["id"]
+    wait_done(client, m)
+    client.post(f"/api/memes/{m}/edit", json={"description": "elephant riding a bicycle"})
+    wait_done(client, m)
+    r = client.post("/api/memes/search", json={"query": "elephant bicycle"}).json()
+    assert r["results"] and r["results"][0]["meme"]["id"] == m

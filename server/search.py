@@ -1,12 +1,15 @@
-"""Hybrid search: Qdrant vector search + SQLite BM25, merged with RRF.
+"""Hybrid search: Qdrant vector search + SQLite BM25, merged with weighted RRF.
 
 Pipeline per query:
   1. If the query is Roman script, also transliterate to Telugu.
-  2. Embed all query variants (Vyakyarth) and search the three named vectors,
-     with payload filters (emotions/actors/movie) applied inside Qdrant.
-  3. BM25 keyword search over dialogue/caption/OCR text via FTS5.
-  4. Merge with Reciprocal Rank Fusion: score = sum(1 / (K + rank)).
-  5. Boost verified memes and rated memes, return top N with ranking reasons.
+  2. Embed all query variants (Vyakyarth) and search each named vector
+     separately, with payload filters applied inside Qdrant.
+  3. BM25 keyword search over description/dialogue/caption/OCR via FTS5.
+  4. Merge with weighted Reciprocal Rank Fusion:
+        score = sum(weight_field / (K + rank_in_field))
+     Curated descriptions carry the most weight — they are the primary search
+     signal — then dialogue, then auto-generated captions.
+  5. Boost verified and rated memes, return top N with ranking reasons.
 """
 
 import logging
@@ -25,6 +28,16 @@ log = logging.getLogger(__name__)
 RRF_K = 60
 VERIFIED_BONUS = 0.005
 RATING_BONUS = 0.001  # per star
+
+# Relative pull of each evidence source in the fusion. Descriptions are the
+# curated ground truth, so they dominate; captions are machine guesses.
+FIELD_WEIGHTS = {
+    "description": 3.0,
+    "dialogue_te": 1.2,
+    "dialogue_en": 1.2,
+    "caption": 0.6,
+}
+KEYWORD_WEIGHT = 1.2
 
 
 def _matches_filters(
@@ -73,13 +86,13 @@ def hybrid_search(
         if query_telugu and query_telugu != query:
             variants.append(query_telugu)
 
-    # 2. Vector search (skipped if the embedding model isn't downloaded yet).
-    vector_hits: list[tuple[str, float]] = []
+    # 2. Vector search per field (skipped if the model isn't downloaded yet).
+    by_field: dict[str, list[tuple[str, float]]] = {}
     if embeddings.is_available():
         try:
             qvecs = [embeddings.embed_text(v) for v in variants]
             qfilter = qdrant_store.build_filter(emotions, actors, movie)
-            vector_hits = qdrant_store.vector_search(
+            by_field = qdrant_store.vector_search_by_field(
                 qclient, qvecs, qfilter, limit=max(20, limit * 2)
             )
         except Exception:
@@ -90,15 +103,20 @@ def hybrid_search(
     # 3. BM25 keyword search across all variants.
     bm25_ids = store.fts_search(conn, " ".join(variants), limit=max(20, limit * 2))
 
-    # 4. Reciprocal Rank Fusion.
+    # 4. Weighted Reciprocal Rank Fusion.
     rrf: dict[str, float] = {}
     vec_scores: dict[str, float] = {}
+    matched_on: dict[str, list[str]] = {}
     bm25_rank: dict[str, int] = {}
-    for rank, (meme_id, score) in enumerate(vector_hits):
-        rrf[meme_id] = rrf.get(meme_id, 0.0) + 1.0 / (RRF_K + rank + 1)
-        vec_scores[meme_id] = score
+    for field, hits in by_field.items():
+        weight = FIELD_WEIGHTS.get(field, 1.0)
+        for rank, (meme_id, score) in enumerate(hits):
+            rrf[meme_id] = rrf.get(meme_id, 0.0) + weight / (RRF_K + rank + 1)
+            if score > vec_scores.get(meme_id, -1.0):
+                vec_scores[meme_id] = score
+            matched_on.setdefault(meme_id, []).append(field)
     for rank, meme_id in enumerate(bm25_ids):
-        rrf[meme_id] = rrf.get(meme_id, 0.0) + 1.0 / (RRF_K + rank + 1)
+        rrf[meme_id] = rrf.get(meme_id, 0.0) + KEYWORD_WEIGHT / (RRF_K + rank + 1)
         bm25_rank[meme_id] = rank + 1
 
     # 5. Load metadata, post-filter BM25-only hits, apply feedback boosts.
@@ -116,6 +134,7 @@ def hybrid_search(
                 "reasons": {
                     "vector_score": round(vec_scores[meme_id], 4)
                     if meme_id in vec_scores else None,
+                    "matched_fields": matched_on.get(meme_id, []),
                     "keyword_rank": bm25_rank.get(meme_id),
                     "verified": meme["verified"],
                 },

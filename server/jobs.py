@@ -170,7 +170,8 @@ class JobQueue:
         if not meme:
             raise ValueError(f"meme {meme_id} not found")
         vectors = embeddings.embed_multifield(
-            meme.get("dialogue_te"), meme.get("dialogue_en"), meme.get("caption")
+            meme.get("dialogue_te"), meme.get("dialogue_en"), meme.get("caption"),
+            description=meme.get("description"),
         )
         if not vectors:
             log.info("No text to embed yet for %s; skipping upsert", meme_id)

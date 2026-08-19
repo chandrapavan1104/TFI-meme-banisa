@@ -65,6 +65,17 @@ Key implementation decisions:
   vector search @500 memes ~2 ms.
 
 ## Changelog (most recent first)
+- 2026-08-20 (late) — Descriptions promoted to the PRIMARY search signal:
+  schema v5 adds metadata.description (own FTS column + own Qdrant vector, so
+  the collection now has 4 named vectors: description/dialogue_te/dialogue_en/
+  caption). Search switched to weighted RRF — description 3.0, dialogue 1.2,
+  keyword 1.2, caption 0.6 — and results report matched_fields. Cluster
+  descriptions now write into member memes' `description` (idempotent per
+  cluster, multiple clusters accumulate) and enqueue RE_EMBED so semantic
+  search updates immediately. Per-item description editable in the store's
+  edit sheet and shown first in the admin inspector. scripts/reindex.py
+  rebuilds the collection after vector-schema changes (run with the service
+  stopped). 41 tests.
 - 2026-08-20 (later) — Cluster curation tools: per-cluster descriptions (schema
   v4 face_clusters table; propagated idempotently into member memes' notes as
   "[face #N] Label: description"; FTS rebuilt to include manual_notes so

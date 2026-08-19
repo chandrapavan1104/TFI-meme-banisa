@@ -1,7 +1,9 @@
 """Qdrant collection schema for TFI-meme-banisa.
 
-One point per meme, with up to three named 768-dim vectors (a point may have
+One point per meme, with up to four named 768-dim vectors (a point may have
 any subset — e.g. caption only, until dialogue is added):
+  - description: embedding of the curated description — the primary search
+                 signal, weighted highest at query time
   - dialogue_te: Vyakyarth embedding of the Telugu dialogue
   - dialogue_en: embedding of the English translation
   - caption:     embedding of the Florence-2 auto caption
@@ -15,7 +17,7 @@ from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
 import config
 
 COLLECTION = config.QDRANT_COLLECTION
-VECTOR_NAMES = ("dialogue_te", "dialogue_en", "caption")
+VECTOR_NAMES = ("description", "dialogue_te", "dialogue_en", "caption")
 
 _PAYLOAD_INDEXES = {
     "movie_title_en": PayloadSchemaType.KEYWORD,

@@ -261,6 +261,8 @@
       <details class="editbox">
         <summary>✏️ Edit details (dialogue, movie, tags)</summary>
         <form class="editgrid" id="edit-form">
+          <label class="wide">⭐ Description — what this sticker means / when to send it
+            <textarea name="description" rows="2" placeholder="e.g. smug comedian shrugging off blame, use when dodging responsibility"></textarea></label>
           <label class="wide">Dialogue (Telugu)<textarea name="dialogue_te" rows="2"></textarea></label>
           <label class="wide">Dialogue (English)<textarea name="dialogue_en" rows="1"></textarea></label>
           <label>Movie<input name="movie_title_en"></label>
@@ -485,7 +487,7 @@ const listFields = ['actors', 'emotion_tags', 'context_tags'];
 function openSheet(m) {
   state.current = m;
   $('#sh-img').src = m.image_url;
-  $('#sh-title').textContent = m.dialogue_te || m.dialogue_en || '';
+  $('#sh-title').textContent = m.dialogue_te || m.dialogue_en || m.description || '';
   const meta = [];
   if (m.movie_title_en) meta.push(`🎬 ${m.movie_title_en}`);
   if ((m.context_tags || [])[0]) meta.push(`📦 ${m.context_tags[0]}`);

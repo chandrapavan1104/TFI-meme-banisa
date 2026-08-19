@@ -389,6 +389,7 @@ function openLightbox(m) {
   $('#lb-img').src = m.image_url;
   $('#lb-title').textContent = m.dialogue_te || m.dialogue_en || '(no dialogue)';
   $('#lb-meta').innerHTML = [
+    m.description ? `<b>Description:</b> ${m.description.replaceAll('\n', '<br>')}` : '',
     m.caption ? `Caption: ${m.caption}` : '',
     (m.actors || []).length ? `Actors: ${m.actors.join(', ')}` : '',
     (m.context_tags || [])[0] ? `Pack: ${m.context_tags[0]}` : '',

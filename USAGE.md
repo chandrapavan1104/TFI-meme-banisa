@@ -94,3 +94,22 @@ static/animated, plus an "untagged only" filter that surfaces likely junk
 Shift+click for a range, ⌘A for all loaded, Delete key or the action bar
 to bulk-delete (with confirmation). Deletion is permanent: image file,
 metadata, and search index entries are all removed.
+
+## Descriptions drive search
+
+Each sticker has a **description** — the highest-weighted signal in search.
+It is embedded as its own vector, so a query matches a description by meaning,
+not just wording ("avoiding accountability" finds a sticker described as
+"smugly refusing to take responsibility").
+
+Two ways to fill them in:
+
+- **Per face cluster** (fastest): /admin → Faces tab → write a description on a
+  cluster and every sticker containing that face inherits it, tagged
+  `[face #N] Name: text`. A sticker with two known faces accumulates both
+  lines. Re-describing replaces only that cluster's line.
+- **Per sticker**: open it in the store and edit the "⭐ Description" field.
+
+Changing a description re-embeds the affected stickers automatically. Results
+report `matched_fields`, showing whether a hit came from the description,
+dialogue, or the auto-caption.

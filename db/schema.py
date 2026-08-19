@@ -2,7 +2,7 @@
 
 import sqlite3
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # Migration 1: initial schema.
 _MIGRATIONS: dict[int, str] = {
@@ -113,6 +113,29 @@ _MIGRATIONS: dict[int, str] = {
                COALESCE(dialogue_roman,''), COALESCE(caption,''),
                COALESCE(ocr_raw,''), COALESCE(movie_title_te,''),
                COALESCE(movie_title_en,''), COALESCE(manual_notes,'')
+        FROM metadata;
+    """,
+    # Migration 5: first-class `description` on each meme — the primary search
+    # signal. Filled from face-cluster descriptions and hand-editable. Indexed
+    # in FTS (keyword) and embedded as its own Qdrant vector (semantic).
+    5: """
+    ALTER TABLE metadata ADD COLUMN description TEXT;
+    DROP TABLE IF EXISTS memes_fts;
+    CREATE VIRTUAL TABLE memes_fts USING fts5(
+        meme_id UNINDEXED,
+        description,
+        dialogue_te, dialogue_en, dialogue_roman,
+        caption, ocr_raw, movie_title_te, movie_title_en, manual_notes,
+        tokenize='unicode61'
+    );
+    INSERT INTO memes_fts (meme_id, description, dialogue_te, dialogue_en,
+                           dialogue_roman, caption, ocr_raw, movie_title_te,
+                           movie_title_en, manual_notes)
+        SELECT meme_id, COALESCE(description,''), COALESCE(dialogue_te,''),
+               COALESCE(dialogue_en,''), COALESCE(dialogue_roman,''),
+               COALESCE(caption,''), COALESCE(ocr_raw,''),
+               COALESCE(movie_title_te,''), COALESCE(movie_title_en,''),
+               COALESCE(manual_notes,'')
         FROM metadata;
     """,
 }

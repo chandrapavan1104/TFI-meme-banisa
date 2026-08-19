@@ -73,19 +73,21 @@ def build_filter(
     return Filter(must=must) if must else None
 
 
-def vector_search(
+def vector_search_by_field(
     client: QdrantClient,
     query_vectors: list[list[float]],
     query_filter: Filter | None = None,
     limit: int = 20,
-) -> list[tuple[str, float]]:
-    """Search every named vector with every query vector; merge by max score.
+) -> dict[str, list[tuple[str, float]]]:
+    """Search each named vector separately with every query vector.
 
-    Returns [(meme_id, best_score)] sorted best-first.
+    Returns {vector_name: [(meme_id, score)] sorted best-first}, so callers can
+    weight the fields differently (descriptions outrank auto-captions).
     """
-    best: dict[str, float] = {}
-    for qv in query_vectors:
-        for name in VECTOR_NAMES:
+    out: dict[str, list[tuple[str, float]]] = {}
+    for name in VECTOR_NAMES:
+        best: dict[str, float] = {}
+        for qv in query_vectors:
             hits = client.query_points(
                 collection_name=COLLECTION,
                 query=qv,
@@ -98,4 +100,22 @@ def vector_search(
                 mid = (hit.payload or {}).get("meme_id")
                 if mid and hit.score > best.get(mid, -1.0):
                     best[mid] = hit.score
+        out[name] = sorted(best.items(), key=lambda kv: kv[1], reverse=True)[:limit]
+    return out
+
+
+def vector_search(
+    client: QdrantClient,
+    query_vectors: list[list[float]],
+    query_filter: Filter | None = None,
+    limit: int = 20,
+) -> list[tuple[str, float]]:
+    """Flattened view of vector_search_by_field: best score per meme."""
+    best: dict[str, float] = {}
+    for hits in vector_search_by_field(
+        client, query_vectors, query_filter, limit
+    ).values():
+        for mid, score in hits:
+            if score > best.get(mid, -1.0):
+                best[mid] = score
     return sorted(best.items(), key=lambda kv: kv[1], reverse=True)[:limit]

@@ -58,10 +58,12 @@ def embed_multifield(
     dialogue_te: str | None,
     dialogue_en: str | None,
     caption: str | None,
+    description: str | None = None,
 ) -> dict[str, list[float]]:
     """Embed each present text field. Returns {vector_name: vector}."""
     out: dict[str, list[float]] = {}
     for name, text in (
+        ("description", description),
         ("dialogue_te", dialogue_te),
         ("dialogue_en", dialogue_en),
         ("caption", caption),

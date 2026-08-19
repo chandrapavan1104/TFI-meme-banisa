@@ -132,6 +132,7 @@ async def upload_meme(
     emotion_tags: str | None = Form(None),  # comma-separated
     context_tags: str | None = Form(None),  # comma-separated
     manual_notes: str | None = Form(None),
+    description: str | None = Form(None),
 ):
     if file.content_type not in _ALLOWED_TYPES:
         raise HTTPException(415, f"unsupported type {file.content_type}; use JPEG/PNG/WebP")
@@ -163,6 +164,7 @@ async def upload_meme(
         "emotion_tags": [e.strip() for e in (emotion_tags or "").split(",") if e.strip()],
         "context_tags": [c.strip() for c in (context_tags or "").split(",") if c.strip()],
         "manual_notes": manual_notes,
+        "description": description,
     }
     meme = store.update_metadata(
         conn, meme_id, {k: v for k, v in fields.items() if v}
@@ -284,6 +286,7 @@ def get_meme(request: Request, meme_id: str):
 
 
 class EditRequest(BaseModel):
+    description: str | None = None
     movie_title_te: str | None = None
     movie_title_en: str | None = None
     actors: list[str] | None = None
@@ -424,8 +427,9 @@ class DescribeRequest(BaseModel):
 @app.post("/api/faces/clusters/{cluster_id}/describe")
 def describe_face_cluster(request: Request, cluster_id: int, body: DescribeRequest):
     """Attach a description to a cluster and propagate it into every member
-    meme's notes (idempotent — re-describing replaces the previous line).
-    Notes are keyword-searchable, so descriptions improve search too."""
+    meme's `description` — the primary search field. Idempotent: re-describing
+    replaces this cluster's line, leaving other clusters' lines intact. Each
+    touched meme is re-embedded so the change reaches semantic search."""
     import re
 
     conn = request.app.state.conn
@@ -437,14 +441,15 @@ def describe_face_cluster(request: Request, cluster_id: int, body: DescribeReque
     meta = store.cluster_meta(conn, cluster_id) or {}
     label = meta.get("label")
     line = f"[face #{cluster_id}] {(label + ': ') if label else ''}{description}"
-    marker = re.compile(rf"\n?\[face #{cluster_id}\][^\n]*")
+    marker = re.compile(rf"^\[face #{cluster_id}\][^\n]*\n?", re.MULTILINE)
     for meme_id in meme_ids:
         meme = store.get_meme(conn, meme_id)
         if not meme:
             continue
-        notes = marker.sub("", meme.get("manual_notes") or "")
-        notes = (notes.rstrip() + "\n" + line).strip()
-        store.update_metadata(conn, meme_id, {"manual_notes": notes})
+        text = marker.sub("", meme.get("description") or "")
+        text = (text.rstrip() + "\n" + line).strip()
+        store.update_metadata(conn, meme_id, {"description": text})
+        request.app.state.jobs.enqueue(meme_id, jobs_mod.RE_EMBED)
     return {"cluster": cluster_id, "description": description, "memes": len(meme_ids)}
 
 
