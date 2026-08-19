@@ -21,6 +21,7 @@ from db import store
 from db.init import init_db
 from server import jobs as jobs_mod
 from server import search as search_mod
+from server import qdrant_store
 from server.qdrant_schema import verify_collection_ready
 from server.qdrant_store import get_client
 
@@ -212,12 +213,39 @@ def list_memes(
     verified: bool | None = None,
     animated: bool | None = None,
     pack: str | None = None,
+    actor: str | None = None,
+    untagged: bool = False,
 ):
     rows, total = store.list_memes(
-        request.app.state.conn, limit=min(limit, 100), offset=offset,
+        request.app.state.conn, limit=min(limit, 200), offset=offset,
         verified=verified, animated=animated, pack=pack,
+        actor=actor, untagged=untagged,
     )
     return {"memes": [_meme_out(m) for m in rows], "total": total}
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=500)
+
+
+@app.post("/api/memes/bulk_delete")
+def bulk_delete(request: Request, body: BulkDeleteRequest):
+    """Permanently delete memes: DB rows, FTS entry, Qdrant point, image file."""
+    conn = request.app.state.conn
+    deleted = 0
+    for meme_id in set(body.ids):
+        meme = store.get_meme(conn, meme_id)
+        if not meme:
+            continue
+        try:
+            qdrant_store.delete_meme(request.app.state.qclient, meme_id)
+        except Exception:
+            log.exception("Qdrant delete failed for %s", meme_id)
+        (config.IMAGES_DIR / meme["image_path"]).unlink(missing_ok=True)
+        store.delete_meme(conn, meme_id)
+        deleted += 1
+    log.info("Bulk delete: %d memes removed", deleted)
+    return {"deleted": deleted}
 
 
 @app.get("/api/packs")
@@ -332,3 +360,8 @@ app.mount("/images", StaticFiles(directory=str(config.IMAGES_DIR), check_dir=Fal
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/admin", include_in_schema=False)
+def admin():
+    return FileResponse(STATIC_DIR / "admin.html")

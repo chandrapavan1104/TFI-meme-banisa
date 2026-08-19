@@ -84,3 +84,13 @@ one actor's stickers. To (re)build references or re-sweep the collection:
 .venv/bin/python scripts/face_tag.py --dry-run  # preview matches
 .venv/bin/python scripts/face_tag.py            # apply tags
 ```
+
+## Admin: cleaning up junk
+
+Open **/admin** (e.g. http://localhost:8010/admin) for a laptop-friendly
+curation view: dense grid with a tile-size slider, filters by pack, actor,
+static/animated, plus an "untagged only" filter that surfaces likely junk
+(no recognized face, no dialogue, no OCR text). Click to select,
+Shift+click for a range, ⌘A for all loaded, Delete key or the action bar
+to bulk-delete (with confirmation). Deletion is permanent: image file,
+metadata, and search index entries are all removed.

@@ -88,6 +88,8 @@ def list_memes(
     verified: bool | None = None,
     animated: bool | None = None,
     pack: str | None = None,
+    actor: str | None = None,
+    untagged: bool = False,
 ) -> tuple[list[dict], int]:
     """Paginated meme list, newest first. Returns (rows, total_count)."""
     clauses, params = [], []
@@ -100,6 +102,14 @@ def list_memes(
     if pack:
         clauses.append("json_extract(md.context_tags, '$[0]') = ?")
         params.append(pack)
+    if actor:
+        clauses.append("md.actors LIKE ?")
+        params.append(f'%"{actor}"%')
+    if untagged:  # no recognized face, no dialogue, no OCR text — junk candidates
+        clauses.append(
+            "md.actors = '[]' AND COALESCE(md.dialogue_te,'') = '' "
+            "AND COALESCE(md.ocr_raw,'') = ''"
+        )
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
     total = conn.execute(
         f"SELECT COUNT(*) FROM memes m JOIN metadata md ON md.meme_id = m.id {where}",

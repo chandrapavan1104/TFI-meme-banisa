@@ -172,3 +172,32 @@ def test_auto_tag_merges_actors(client):
         f"/api/memes/{meme_id}/auto_tag", json={"actors": ["Chiranjeevi"]}
     ).json()["meme"]
     assert out2["actors"] == ["Brahmanandam", "Chiranjeevi"]
+
+
+def test_bulk_delete(client):
+    import config
+
+    ids = []
+    for seed in range(60, 63):
+        r = upload(client, seed=seed, context_tags="Junk Pack")
+        ids.append(r.json()["meme"]["id"])
+    for mid in ids:
+        wait_done(client, mid)
+    image_paths = [
+        config.IMAGES_DIR / client.get(f"/api/memes/{m}").json()["meme"]["image_path"]
+        for m in ids
+    ]
+    assert all(p.exists() for p in image_paths)
+
+    res = client.post("/api/memes/bulk_delete", json={"ids": ids + ["nonexistent"]})
+    assert res.json()["deleted"] == 3
+    assert client.get(f"/api/memes/{ids[0]}").status_code == 404
+    assert not any(p.exists() for p in image_paths)  # image files removed
+    # Gone from keyword search and from the vector index.
+    assert client.post("/api/memes/search", json={"query": "జీవితం"}).json()["results"] == []
+    assert client.get("/api/memes?pack=Junk%20Pack").json()["total"] == 0
+
+
+def test_admin_page_served(client):
+    r = client.get("/admin")
+    assert r.status_code == 200 and "Admin" in r.text

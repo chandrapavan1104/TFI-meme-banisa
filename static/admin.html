@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · TFI meme బనిస</title>
+<style>
+  :root {
+    --bg: #f5f3ef; --card: #fff; --text: #221d16; --muted: #8a8177;
+    --accent: #e8590c; --accent-soft: #fff1e3; --danger: #d6336c;
+    --border: #e6dfd4; --shadow: 0 1px 3px rgba(60,40,10,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141210; --card: #1f1c18; --text: #f2ede6; --muted: #9d948a;
+      --accent: #ff7a2f; --accent-soft: #33220f; --danger: #ff5c8a;
+      --border: #2c2823; --shadow: 0 1px 4px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, "Segoe UI", Roboto, "Noto Sans Telugu", sans-serif;
+    user-select: none;
+  }
+  button, select, input { font: inherit; }
+
+  /* ---------- toolbar ---------- */
+  .bar {
+    position: sticky; top: 0; z-index: 20; background: var(--bg);
+    border-bottom: 1px solid var(--border); padding: .6rem 1rem;
+    display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+  }
+  .bar .title { font-weight: 800; margin-right: .4rem; }
+  .bar .title a { color: var(--accent); text-decoration: none; font-weight: 400; font-size: .85rem; }
+  .bar input[type=search], .bar select {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: .4rem .6rem;
+  }
+  .bar input[type=search] { width: 220px; }
+  .seg { display: flex; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+  .seg button { background: none; border: 0; color: var(--muted); border-radius: 6px; padding: .3rem .6rem; cursor: pointer; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  label.chk { display: flex; align-items: center; gap: .3rem; color: var(--muted); cursor: pointer; }
+  .sizectl { display: flex; align-items: center; gap: .3rem; color: var(--muted); }
+  #count { margin-left: auto; color: var(--muted); font-size: .85rem; }
+  .hint { width: 100%; color: var(--muted); font-size: .75rem; }
+  .hint kbd { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0 .3rem; }
+
+  /* ---------- grid ---------- */
+  main { padding: .8rem 1rem 6rem; }
+  #grid {
+    display: grid; gap: .55rem;
+    grid-template-columns: repeat(auto-fill, minmax(var(--tile, 140px), 1fr));
+  }
+  .tile {
+    position: relative; border-radius: 10px; overflow: hidden; cursor: pointer;
+    background: var(--card); border: 2px solid var(--border); box-shadow: var(--shadow);
+    aspect-ratio: 1;
+  }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .tile.sel { border-color: var(--accent); }
+  .tile.sel::after {
+    content: "✓"; position: absolute; top: .35rem; left: .35rem; width: 22px; height: 22px;
+    background: var(--accent); color: #fff; border-radius: 999px; font-size: .85rem;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .tile .b {
+    position: absolute; bottom: .3rem; left: .3rem; right: .3rem; display: flex; gap: .25rem;
+    pointer-events: none;
+  }
+  .tile .badge {
+    background: rgba(0,0,0,.6); color: #fff; font-size: .6rem; padding: .05rem .35rem;
+    border-radius: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tile .zoom {
+    position: absolute; top: .3rem; right: .3rem; width: 24px; height: 24px; border-radius: 6px;
+    background: rgba(0,0,0,.55); color: #fff; border: 0; cursor: zoom-in; display: none;
+    align-items: center; justify-content: center;
+  }
+  .tile:hover .zoom { display: flex; }
+
+  /* ---------- selection action bar ---------- */
+  #actionbar {
+    position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%);
+    background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25); padding: .55rem 1rem; z-index: 30;
+    display: none; align-items: center; gap: .8rem;
+  }
+  #actionbar.show { display: flex; }
+  #actionbar .n { font-weight: 700; }
+  #actionbar button { border: 0; border-radius: 999px; padding: .45rem 1rem; cursor: pointer; }
+  #ab-del { background: var(--danger); color: #fff; font-weight: 600; }
+  #ab-clear { background: var(--bg); color: var(--muted); }
+  #ab-all { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- lightbox ---------- */
+  dialog { border: 0; border-radius: 16px; background: var(--card); color: var(--text);
+    max-width: 640px; width: 92vw; padding: 0; overflow: hidden; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  .lb-img { background: #000; text-align: center; }
+  .lb-img img { max-width: 100%; max-height: 60vh; }
+  .lb-body { padding: .8rem 1rem 1rem; user-select: text; }
+  .lb-body .row { display: flex; gap: .8rem; margin-top: .5rem; }
+  .lb-body button { border: 0; border-radius: 10px; padding: .5rem 1rem; cursor: pointer; }
+  .lb-del { background: var(--danger); color: #fff; }
+  .lb-close { background: var(--bg); color: var(--text); }
+  .meta { font-size: .82rem; color: var(--muted); }
+
+  /* confirm dialog */
+  #confirm { padding: 1.2rem; max-width: 380px; }
+  #confirm .row { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1rem; }
+  #confirm button { border: 0; border-radius: 10px; padding: .5rem 1.1rem; cursor: pointer; }
+  #c-yes { background: var(--danger); color: #fff; font-weight: 600; }
+  #c-no { background: var(--bg); color: var(--text); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 4.5rem; transform: translateX(-50%);
+    background: var(--text); color: var(--bg); border-radius: 999px; padding: .5rem 1.1rem;
+    font-size: .85rem; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 40;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="title">🛠 Admin <a href="/">← store</a></span>
+  <input id="q" type="search" placeholder="Search…">
+  <select id="f-pack"><option value="">All packs</option></select>
+  <select id="f-actor"><option value="">All actors</option></select>
+  <div class="seg" id="f-type">
+    <button data-v="" class="on">All</button><button data-v="false">🖼</button><button data-v="true">🎞</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="f-untagged"> untagged only (junk candidates)</label>
+  <div class="sizectl">🔍<input type="range" id="size" min="90" max="260" value="140" step="10"></div>
+  <span id="count"></span>
+  <div class="hint">
+    Click = select · <kbd>Shift</kbd>+click = range · <kbd>⌘A</kbd> = select all loaded ·
+    <kbd>Esc</kbd> = clear · <kbd>Delete</kbd> = delete selected · hover 🔍 = inspect
+  </div>
+</div>
+
+<main><div id="grid"></div></main>
+
+<div id="actionbar">
+  <span class="n"><span id="ab-n">0</span> selected</span>
+  <button id="ab-all">Select all loaded</button>
+  <button id="ab-clear">Clear</button>
+  <button id="ab-del">🗑 Delete</button>
+</div>
+
+<dialog id="lightbox">
+  <div class="lb-img"><img id="lb-img" alt=""></div>
+  <div class="lb-body">
+    <div id="lb-title" style="font-weight:700"></div>
+    <div class="meta" id="lb-meta"></div>
+    <div class="row">
+      <button class="lb-del" id="lb-del">🗑 Delete this one</button>
+      <button class="lb-close" id="lb-close">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="confirm">
+  <div id="c-text" style="font-size:1rem"></div>
+  <div class="meta" style="margin-top:.4rem">This permanently removes the images, metadata, and search index entries.</div>
+  <div class="row"><button id="c-no">Cancel</button><button id="c-yes">Delete</button></div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = (path, opts) => fetch(path, opts).then(async (r) => {
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+});
+const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2000); };
+
+const state = {
+  memes: [], total: 0, offset: 0, loading: false,
+  sel: new Set(), lastClicked: null, current: null,
+  animated: null, pack: '', actor: '', untagged: false, q: '',
+};
+const PAGE = 100;
+
+// ---------- filters ----------
+async function loadFilterOptions() {
+  const [{ packs }, { actors }] = await Promise.all([api('/api/packs?limit=200'), api('/api/actors')]);
+  for (const p of packs) $('#f-pack').insertAdjacentHTML('beforeend',
+    `<option value="${p.name.replaceAll('"','&quot;')}">${p.name} (${p.count})</option>`);
+  for (const a of actors) $('#f-actor').insertAdjacentHTML('beforeend', `<option>${a}</option>`);
+}
+$('#f-pack').onchange = (e) => { state.pack = e.target.value; reload(); };
+$('#f-actor').onchange = (e) => { state.actor = e.target.value; reload(); };
+$('#f-untagged').onchange = (e) => { state.untagged = e.target.checked; reload(); };
+document.querySelectorAll('#f-type button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('#f-type button').forEach((x) => x.classList.remove('on'));
+  b.classList.add('on');
+  state.animated = b.dataset.v === '' ? null : b.dataset.v === 'true';
+  reload();
+});
+let deb;
+$('#q').addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(() => { state.q = $('#q').value.trim(); reload(); }, 300); });
+$('#size').oninput = (e) => document.documentElement.style.setProperty('--tile', e.target.value + 'px');
+
+// ---------- loading ----------
+async function reload() { state.memes = []; state.offset = 0; state.sel.clear(); state.lastClicked = null; updateBar(); await loadPage(true); }
+
+async function loadPage(reset) {
+  if (state.loading) return;
+  state.loading = true;
+  try {
+    if (state.q) {
+      const body = { query: state.q, limit: 100 };
+      if (state.animated !== null) body.animated = state.animated;
+      if (state.actor) body.actors = [state.actor];
+      const res = await api('/api/memes/search', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      state.memes = res.results.map((r) => r.meme);
+      state.total = state.memes.length;
+      render(true);
+    } else {
+      let url = `/api/memes?limit=${PAGE}&offset=${state.offset}`;
+      if (state.animated !== null) url += `&animated=${state.animated}`;
+      if (state.pack) url += `&pack=${encodeURIComponent(state.pack)}`;
+      if (state.actor) url += `&actor=${encodeURIComponent(state.actor)}`;
+      if (state.untagged) url += `&untagged=true`;
+      const res = await api(url);
+      state.memes = state.memes.concat(res.memes);
+      state.total = res.total;
+      state.offset += PAGE;
+      render(reset);
+    }
+  } catch (e) { toast('Load failed: ' + e.message); }
+  state.loading = false;
+}
+
+function render(reset) {
+  const grid = $('#grid');
+  if (reset) grid.innerHTML = '';
+  const start = reset ? 0 : grid.children.length;
+  for (let i = start; i < state.memes.length; i++) {
+    const m = state.memes[i];
+    const t = document.createElement('div');
+    t.className = 'tile' + (state.sel.has(m.id) ? ' sel' : '');
+    t.dataset.i = i; t.dataset.id = m.id;
+    const pack = (m.context_tags || [])[0] || '';
+    const badges = [
+      m.animated ? '<span class="badge">GIF</span>' : '',
+      (m.actors || []).length ? `<span class="badge">⭐ ${m.actors[0]}${m.actors.length > 1 ? ' +' + (m.actors.length - 1) : ''}</span>` : '',
+      pack ? `<span class="badge">${pack}</span>` : '',
+    ].join('');
+    t.innerHTML = `<img src="${m.image_url}" loading="lazy">
+      <button class="zoom" title="inspect">🔍</button><div class="b">${badges}</div>`;
+    t.onclick = (e) => onTileClick(e, i, m);
+    t.querySelector('.zoom').onclick = (e) => { e.stopPropagation(); openLightbox(m); };
+    grid.appendChild(t);
+  }
+  $('#count').textContent = `${grid.children.length} / ${state.total}`;
+}
+
+// infinite scroll
+const sentinel = document.createElement('div');
+document.querySelector('main').appendChild(sentinel);
+new IntersectionObserver((es) => {
+  if (es[0].isIntersecting && !state.q && state.memes.length < state.total) loadPage(false);
+}, { rootMargin: '600px' }).observe(sentinel);
+
+// ---------- selection ----------
+function onTileClick(e, i, m) {
+  if (e.shiftKey && state.lastClicked !== null) {
+    const [a, b] = [Math.min(state.lastClicked, i), Math.max(state.lastClicked, i)];
+    for (let k = a; k <= b; k++) state.sel.add(state.memes[k].id);
+  } else {
+    state.sel.has(m.id) ? state.sel.delete(m.id) : state.sel.add(m.id);
+    state.lastClicked = i;
+  }
+  syncSelection(); updateBar();
+}
+function syncSelection() {
+  document.querySelectorAll('.tile').forEach((t) =>
+    t.classList.toggle('sel', state.sel.has(t.dataset.id)));
+}
+function updateBar() {
+  $('#ab-n').textContent = state.sel.size;
+  $('#actionbar').classList.toggle('show', state.sel.size > 0);
+}
+$('#ab-clear').onclick = () => { state.sel.clear(); syncSelection(); updateBar(); };
+$('#ab-all').onclick = () => { state.memes.forEach((m) => state.sel.add(m.id)); syncSelection(); updateBar(); };
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+    e.preventDefault(); $('#ab-all').click();
+  } else if (e.key === 'Escape') {
+    $('#ab-clear').click();
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.sel.size) {
+    e.preventDefault(); confirmDelete([...state.sel]);
+  }
+});
+
+// ---------- delete ----------
+function confirmDelete(ids) {
+  $('#c-text').textContent = `Delete ${ids.length} sticker${ids.length > 1 ? 's' : ''}?`;
+  const dlg = $('#confirm');
+  dlg.showModal();
+  $('#c-no').onclick = () => dlg.close();
+  $('#c-yes').onclick = async () => {
+    dlg.close();
+    try {
+      let deleted = 0;
+      for (let i = 0; i < ids.length; i += 400) {  // API caps at 500/request
+        const res = await api('/api/memes/bulk_delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: ids.slice(i, i + 400) }),
+        });
+        deleted += res.deleted;
+      }
+      const gone = new Set(ids);
+      state.memes = state.memes.filter((m) => !gone.has(m.id));
+      state.total -= deleted;
+      state.sel.clear();
+      render(true); updateBar();
+      toast(`Deleted ${deleted} ✔`);
+    } catch (e) { toast('Delete failed: ' + e.message); }
+  };
+}
+$('#ab-del').onclick = () => confirmDelete([...state.sel]);
+
+// ---------- lightbox ----------
+function openLightbox(m) {
+  state.current = m;
+  $('#lb-img').src = m.image_url;
+  $('#lb-title').textContent = m.dialogue_te || m.dialogue_en || '(no dialogue)';
+  $('#lb-meta').innerHTML = [
+    m.caption ? `Caption: ${m.caption}` : '',
+    (m.actors || []).length ? `Actors: ${m.actors.join(', ')}` : '',
+    (m.context_tags || [])[0] ? `Pack: ${m.context_tags[0]}` : '',
+    m.manual_notes || '',
+  ].filter(Boolean).join('<br>');
+  $('#lightbox').showModal();
+}
+$('#lb-close').onclick = () => $('#lightbox').close();
+$('#lb-del').onclick = () => { $('#lightbox').close(); confirmDelete([state.current.id]); };
+
+loadFilterOptions();
+loadPage(true);
+</script>
+</body>
+</html>

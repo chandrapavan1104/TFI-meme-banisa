@@ -65,6 +65,13 @@ Key implementation decisions:
   vector search @500 memes ~2 ms.
 
 ## Changelog (most recent first)
+- 2026-08-19 (late) — Admin curation page at /admin (laptop-optimized): dense
+  uniform grid with adjustable tile size, filters (pack/actor/type/search +
+  "untagged only" junk-candidate filter — matches memes with no face, dialogue,
+  or OCR text), click/shift-click range/⌘A selection, floating action bar,
+  Delete-key support, inspect lightbox, confirm-guarded bulk delete. New
+  POST /api/memes/bulk_delete removes DB rows + FTS + Qdrant point + image
+  file; list endpoint gains actor/untagged filters. 37 tests.
 - 2026-08-19 (night) — Actor segregation via face recognition: InsightFace
   (buffalo_l ArcFace) in collectors/faces.py; per-actor references from
   Wikipedia portraits + in-domain bootstrap (scripts/build_face_refs.py, 21
