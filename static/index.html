@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TFI-banisa — Telugu Meme Search</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --panel: #ffffff; --text: #1a1a1a; --muted: #6b6b6b;
+    --accent: #c2410c; --accent-soft: #ffedd5; --border: #e4e2dd;
+    --ok: #16a34a; --err: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a; --panel: #1f1f25; --text: #ececec; --muted: #9a9aa2;
+      --accent: #fb923c; --accent-soft: #3b2513; --border: #2e2e36;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, "Noto Sans Telugu", sans-serif;
+  }
+  header {
+    padding: 1.2rem 1.5rem .8rem; display: flex; align-items: baseline;
+    gap: .8rem; flex-wrap: wrap;
+  }
+  header h1 { margin: 0; font-size: 1.4rem; }
+  header .sub { color: var(--muted); font-size: .85rem; }
+  #health { margin-left: auto; font-size: .8rem; color: var(--muted); }
+  main { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;
+  }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+  input[type=text], input[type=search], textarea, select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: .55rem .8rem; font: inherit; min-width: 0;
+  }
+  #q { flex: 1 1 260px; font-size: 1.05rem; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: .55rem 1rem; font: inherit; cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .chips { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .6rem; }
+  .chip {
+    font-size: .8rem; padding: .2rem .7rem; border-radius: 99px;
+    border: 1px solid var(--border); cursor: pointer; user-select: none;
+  }
+  .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  #grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; cursor: pointer; display: flex; flex-direction: column;
+  }
+  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .card .meta { padding: .5rem .7rem .7rem; font-size: .8rem; }
+  .card .cap {
+    color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card .score { color: var(--accent); font-weight: 600; }
+  .badge {
+    font-size: .7rem; padding: 0 .45rem; border-radius: 6px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .muted { color: var(--muted); }
+  #status-msg { font-size: .85rem; margin-top: .5rem; }
+  progress { width: 100%; margin-top: .5rem; }
+  dialog {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 14px; max-width: 720px; width: 92vw; padding: 1.2rem;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog img { max-width: 100%; max-height: 40vh; border-radius: 8px; display: block; margin: 0 auto .8rem; }
+  dialog form { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  dialog form label { font-size: .78rem; color: var(--muted); display: flex; flex-direction: column; gap: .2rem; }
+  dialog form label.wide { grid-column: 1 / -1; }
+  @media (max-width: 560px) { dialog form { grid-template-columns: 1fr; } }
+  .actions { grid-column: 1 / -1; display: flex; gap: .6rem; justify-content: flex-end; margin-top: .4rem; }
+  details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TFI-banisa</h1>
+  <span class="sub">Telugu movie meme semantic search</span>
+  <span id="health">checking…</span>
+</header>
+<main>
+  <section class="panel">
+    <div class="row">
+      <input id="q" type="search" placeholder='Describe a scene… e.g. "sad scene", "చిరంజీవి కన్నీళ్లు", "ee jeevitham"' autofocus>
+      <button id="search-btn">Search</button>
+    </div>
+    <div class="chips" id="type-chips">
+      <span class="chip" data-type="static">🖼 static only</span>
+      <span class="chip" data-type="animated">🎞 animated only</span>
+    </div>
+    <div class="chips" id="emotion-chips"></div>
+    <div class="chips" id="actor-chips"></div>
+    <div id="search-info" class="muted" style="font-size:.8rem;margin-top:.4rem"></div>
+  </section>
+
+  <section class="panel">
+    <details id="upload-details">
+      <summary>➕ Upload a meme</summary>
+      <form id="upload-form" style="margin-top:.8rem">
+        <div class="row">
+          <input type="file" id="file" accept="image/jpeg,image/png,image/webp" required>
+          <input type="text" id="u-movie" placeholder="Movie (English)">
+          <input type="text" id="u-dialogue" placeholder="Dialogue (Telugu)">
+          <input type="text" id="u-actors" placeholder="Actors, comma-separated">
+          <input type="text" id="u-emotions" placeholder="Emotions, comma-separated">
+          <button type="submit">Upload</button>
+        </div>
+        <progress id="u-progress" max="100" value="0" hidden></progress>
+        <div id="status-msg"></div>
+      </form>
+    </details>
+  </section>
+
+  <div id="grid"></div>
+  <p id="empty" class="muted" hidden>No memes found. Upload some!</p>
+</main>
+
+<dialog id="detail">
+  <img id="d-img" alt="meme">
+  <form id="edit-form">
+    <label>Movie (Telugu)<input type="text" name="movie_title_te"></label>
+    <label>Movie (English)<input type="text" name="movie_title_en"></label>
+    <label class="wide">Dialogue (Telugu)<textarea name="dialogue_te" rows="2"></textarea></label>
+    <label class="wide">Dialogue (English)<textarea name="dialogue_en" rows="2"></textarea></label>
+    <label>Dialogue (Roman)<input type="text" name="dialogue_roman"></label>
+    <label>Actors (comma-sep)<input type="text" name="actors"></label>
+    <label>Emotions (comma-sep)<input type="text" name="emotion_tags"></label>
+    <label>Context tags (comma-sep)<input type="text" name="context_tags"></label>
+    <label class="wide">Notes<textarea name="manual_notes" rows="2"></textarea></label>
+    <div class="wide muted" id="d-auto" style="font-size:.8rem"></div>
+    <div class="actions">
+      <button type="button" class="secondary" id="d-copy">Copy image</button>
+      <button type="button" class="secondary" id="d-close">Close</button>
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = (path, opts) => fetch(path, opts).then(async (r) => {
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+});
+const state = { emotions: new Set(), actors: new Set(), animated: null, current: null };
+
+// --- static/animated toggle ----------------------------------------------
+document.querySelectorAll('#type-chips .chip').forEach((c) => {
+  c.onclick = () => {
+    const want = c.dataset.type === 'animated';
+    state.animated = state.animated === want ? null : want;
+    document.querySelectorAll('#type-chips .chip').forEach((x) =>
+      x.classList.toggle('on', state.animated === (x.dataset.type === 'animated')));
+    $('#q').value.trim() ? doSearch() : browse();
+  };
+});
+
+// --- health ---------------------------------------------------------------
+api('/health').then((h) => {
+  const parts = [];
+  parts.push(h.qdrant.collection_ready ? 'qdrant ✓' : 'qdrant ✗');
+  parts.push(h.models.embedding.cached ? 'embed ✓' : 'embed ✗');
+  parts.push(h.models.caption.cached ? 'caption ✓' : 'caption ✗');
+  parts.push(h.models.ocr.available ? 'ocr ✓' : 'ocr ✗');
+  $('#health').textContent = parts.join(' · ');
+}).catch(() => { $('#health').textContent = 'server unreachable'; });
+
+// --- filters --------------------------------------------------------------
+async function loadFilters() {
+  const [em, ac] = await Promise.all([api('/api/emotions'), api('/api/actors')]);
+  renderChips($('#emotion-chips'), em.emotions, state.emotions);
+  renderChips($('#actor-chips'), ac.actors, state.actors);
+}
+function renderChips(el, values, set) {
+  el.innerHTML = '';
+  for (const v of values) {
+    const c = document.createElement('span');
+    c.className = 'chip' + (set.has(v) ? ' on' : '');
+    c.textContent = v;
+    c.onclick = () => { set.has(v) ? set.delete(v) : set.add(v); c.classList.toggle('on'); doSearch(); };
+    el.appendChild(c);
+  }
+}
+
+// --- search / browse ------------------------------------------------------
+let debounceTimer;
+$('#q').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(doSearch, 300);
+});
+$('#search-btn').onclick = doSearch;
+
+async function doSearch() {
+  const q = $('#q').value.trim();
+  if (!q) return browse();
+  const body = { query: q, limit: 24 };
+  if (state.emotions.size) body.emotions = [...state.emotions];
+  if (state.actors.size) body.actors = [...state.actors];
+  if (state.animated !== null) body.animated = state.animated;
+  try {
+    const res = await api('/api/memes/search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const info = [`${res.results.length} results in ${res.duration_ms} ms`];
+    if (res.query_telugu) info.push(`searched as “${res.query_telugu}”`);
+    $('#search-info').textContent = info.join(' · ');
+    renderGrid(res.results.map((r) => ({ ...r.meme, _score: r.score, _reasons: r.reasons })));
+  } catch (e) { $('#search-info').textContent = 'search failed: ' + e.message; }
+}
+
+async function browse() {
+  $('#search-info').textContent = '';
+  const extra = state.animated === null ? '' : `&animated=${state.animated}`;
+  const res = await api('/api/memes?limit=48' + extra);
+  renderGrid(res.memes);
+}
+
+function renderGrid(memes) {
+  const grid = $('#grid');
+  grid.innerHTML = '';
+  $('#empty').hidden = memes.length > 0;
+  for (const m of memes) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const cap = m.dialogue_te || m.caption || m.dialogue_en || '';
+    card.innerHTML = `
+      <img src="${m.image_url}" alt="" loading="lazy">
+      <div class="meta">
+        ${m._score ? `<span class="score">${(m._reasons?.vector_score ?? m._score).toFixed(3)}</span> ` : ''}
+        ${m.verified ? '<span class="badge">verified</span> ' : ''}
+        <span>${m.movie_title_en || ''}</span>
+        <div class="cap">${cap}</div>
+      </div>`;
+    card.onclick = () => openDetail(m.id);
+    grid.appendChild(card);
+  }
+}
+
+// --- upload ---------------------------------------------------------------
+$('#upload-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const file = $('#file').files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  if ($('#u-movie').value) fd.append('movie_title_en', $('#u-movie').value);
+  if ($('#u-dialogue').value) fd.append('dialogue_te', $('#u-dialogue').value);
+  if ($('#u-actors').value) fd.append('actors', $('#u-actors').value);
+  if ($('#u-emotions').value) fd.append('emotion_tags', $('#u-emotions').value);
+  const msg = $('#status-msg'); const bar = $('#u-progress');
+  msg.textContent = 'Uploading…'; bar.hidden = false; bar.value = 0;
+  try {
+    const res = await api('/api/memes/upload', { method: 'POST', body: fd });
+    msg.textContent = res.duplicate ? 'Already uploaded — reprocessing…' : 'Processing (caption, OCR, embedding)…';
+    pollStatus(res.meme.id, msg, bar);
+  } catch (err) {
+    msg.textContent = 'Upload failed: ' + err.message; bar.hidden = true;
+  }
+});
+
+function pollStatus(id, msg, bar) {
+  const t = setInterval(async () => {
+    try {
+      const s = await api(`/api/memes/${id}/status`);
+      bar.value = s.progress;
+      if (s.status === 'done') {
+        clearInterval(t); bar.hidden = true;
+        msg.textContent = s.errors.length ? '⚠ Done with errors: ' + s.errors.join('; ') : '✓ Meme processed and searchable';
+        $('#upload-form').reset();
+        browse(); loadFilters();
+      }
+    } catch { clearInterval(t); }
+  }, 500);
+}
+
+// --- detail / edit --------------------------------------------------------
+const listFields = ['actors', 'emotion_tags', 'context_tags'];
+async function openDetail(id) {
+  const { meme } = await api(`/api/memes/${id}`);
+  state.current = meme;
+  $('#d-img').src = meme.image_url;
+  const f = $('#edit-form');
+  for (const el of f.elements) {
+    if (!el.name) continue;
+    const v = meme[el.name];
+    el.value = listFields.includes(el.name) ? (v || []).join(', ') : (v || '');
+  }
+  $('#d-auto').textContent =
+    (meme.caption ? `Auto-caption: ${meme.caption}` : '') +
+    (meme.ocr_raw ? `  |  OCR: ${meme.ocr_raw}` : '');
+  $('#detail').showModal();
+}
+$('#d-close').onclick = () => $('#detail').close();
+$('#d-copy').onclick = async () => {
+  const resp = await fetch(state.current.image_url);
+  const blob = await resp.blob();
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    $('#d-copy').textContent = 'Copied!';
+    setTimeout(() => { $('#d-copy').textContent = 'Copy image'; }, 1500);
+  } catch { window.open(state.current.image_url, '_blank'); }
+};
+$('#edit-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = {};
+  for (const el of e.target.elements) {
+    if (!el.name) continue;
+    body[el.name] = listFields.includes(el.name)
+      ? el.value.split(',').map((s) => s.trim()).filter(Boolean)
+      : (el.value || null);
+  }
+  await api(`/api/memes/${state.current.id}/edit`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  $('#detail').close();
+  browse(); loadFilters();
+});
+
+browse();
+loadFilters();
+</script>
+</body>
+</html>

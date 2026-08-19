@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- launchd service template. __PROJECT_DIR__ and __HOME__ are filled in by
+     install-service.sh. Starts on login, restarts on crash, captures logs. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tfibanisa.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PROJECT_DIR__/scripts/run.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- launchd hands a service PATH=/usr/bin:/bin:/usr/sbin:/sbin, which has no
+         Homebrew. Without this, shutil.which("tesseract") fails and the server
+         comes up reporting ocr.available=false even though tesseract is
+         installed — it works from a shell and silently degrades as a service. -->
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_DIR__</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>__HOME__/.tfibanisa/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.tfibanisa/logs/launchd.err.log</string>
+</dict>
+</plist>

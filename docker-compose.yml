@@ -1,0 +1,15 @@
+# Optional: run Qdrant as a server (set QDRANT_MODE=server).
+# Default setup uses embedded Qdrant and does not need Docker at all.
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: tfibanisa-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # REST
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  qdrant_data:
