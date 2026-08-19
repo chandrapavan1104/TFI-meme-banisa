@@ -211,12 +211,23 @@ def list_memes(
     offset: int = 0,
     verified: bool | None = None,
     animated: bool | None = None,
+    pack: str | None = None,
 ):
     rows, total = store.list_memes(
         request.app.state.conn, limit=min(limit, 100), offset=offset,
-        verified=verified, animated=animated,
+        verified=verified, animated=animated, pack=pack,
     )
     return {"memes": [_meme_out(m) for m in rows], "total": total}
+
+
+@app.get("/api/packs")
+def get_packs(request: Request, limit: int = 60):
+    packs = store.list_packs(request.app.state.conn, limit=min(limit, 200))
+    return {
+        "packs": [
+            {**p, "cover_url": f"/images/{p.pop('cover_path')}"} for p in packs
+        ]
+    }
 
 
 @app.get("/api/movies")

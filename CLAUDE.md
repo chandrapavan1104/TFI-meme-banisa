@@ -65,6 +65,13 @@ Key implementation decisions:
   vector search @500 memes ~2 ms.
 
 ## Changelog (most recent first)
+- 2026-08-19 (evening) — End-user UI redesign modeled on sticker stores
+  (sticker.ly/Sticker Babai): sticky rounded search + All/🖼/🎞 segmented control,
+  emoji category chips that run semantic searches (Comedy/Sad/Angry/Love/...),
+  horizontally scrolling pack shelf (new GET /api/packs + ?pack= list filter),
+  masonry grid with GIF badges and hover quick-copy, tap-to-open bottom sheet
+  with Copy/Share (Web Share API)/Save + star rating + "More like this" +
+  collapsed edit form, upload moved to a FAB sheet, toasts. 34 tests.
 - 2026-08-19 (later) — Static meme expansion: collection now 3,018 (2,076 static
   image memes / 942 animated), all processed, 0 job errors. New `animated` flag
   (schema v2, detected via PIL at upload, backfilled) with filters in list/search

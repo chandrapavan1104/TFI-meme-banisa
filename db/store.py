@@ -87,6 +87,7 @@ def list_memes(
     offset: int = 0,
     verified: bool | None = None,
     animated: bool | None = None,
+    pack: str | None = None,
 ) -> tuple[list[dict], int]:
     """Paginated meme list, newest first. Returns (rows, total_count)."""
     clauses, params = [], []
@@ -96,9 +97,13 @@ def list_memes(
     if animated is not None:
         clauses.append("m.animated = ?")
         params.append(int(animated))
+    if pack:
+        clauses.append("json_extract(md.context_tags, '$[0]') = ?")
+        params.append(pack)
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
     total = conn.execute(
-        f"SELECT COUNT(*) FROM memes m {where}", params
+        f"SELECT COUNT(*) FROM memes m JOIN metadata md ON md.meme_id = m.id {where}",
+        params,
     ).fetchone()[0]
     rows = conn.execute(
         f"""SELECT m.*, md.movie_title_te, md.movie_title_en, md.actors,
@@ -163,6 +168,21 @@ def _distinct_json_values(conn: sqlite3.Connection, column: str) -> list[str]:
     for (raw,) in conn.execute(f"SELECT {column} FROM metadata"):
         values.update(json.loads(raw or "[]"))
     return sorted(values)
+
+
+@_locked
+def list_packs(conn: sqlite3.Connection, limit: int = 60) -> list[dict]:
+    """Sticker packs (first context tag), biggest first, with a cover image."""
+    rows = conn.execute(
+        """SELECT json_extract(md.context_tags, '$[0]') AS name,
+                  COUNT(*) AS count, MIN(m.image_path) AS cover_path
+           FROM metadata md JOIN memes m ON m.id = md.meme_id
+           WHERE json_extract(md.context_tags, '$[0]') IS NOT NULL
+             AND json_extract(md.context_tags, '$[0]') != ''
+           GROUP BY name ORDER BY count DESC LIMIT ?""",
+        (limit,),
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 @_locked

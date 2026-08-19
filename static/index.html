@@ -2,154 +2,291 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TFI-meme-banisa — Telugu Meme Search</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TFI meme బనిస</title>
 <style>
   :root {
-    --bg: #f7f6f3; --panel: #ffffff; --text: #1a1a1a; --muted: #6b6b6b;
-    --accent: #c2410c; --accent-soft: #ffedd5; --border: #e4e2dd;
-    --ok: #16a34a; --err: #dc2626;
+    --bg: #faf7f2; --card: #ffffff; --text: #221d16; --muted: #8a8177;
+    --accent: #e8590c; --accent-2: #ffb703; --accent-soft: #fff1e3;
+    --border: #eee7dc; --shadow: 0 1px 4px rgba(60,40,10,.08);
+    --sheet-bg: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #16161a; --panel: #1f1f25; --text: #ececec; --muted: #9a9aa2;
-      --accent: #fb923c; --accent-soft: #3b2513; --border: #2e2e36;
+      --bg: #141210; --card: #1f1c18; --text: #f2ede6; --muted: #9d948a;
+      --accent: #ff7a2f; --accent-2: #ffb703; --accent-soft: #33220f;
+      --border: #2c2823; --shadow: 0 1px 6px rgba(0,0,0,.4);
+      --sheet-bg: #201d19;
     }
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, "Noto Sans Telugu", sans-serif;
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, "Noto Sans Telugu", sans-serif;
+    padding-bottom: env(safe-area-inset-bottom);
   }
+  button { font: inherit; cursor: pointer; border: 0; }
+
+  /* ---------- sticky header: brand + search ---------- */
   header {
-    padding: 1.2rem 1.5rem .8rem; display: flex; align-items: baseline;
-    gap: .8rem; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 20; background: var(--bg);
+    padding: .7rem 1rem .4rem; border-bottom: 1px solid var(--border);
   }
-  header h1 { margin: 0; font-size: 1.4rem; }
-  header .sub { color: var(--muted); font-size: .85rem; }
-  #health { margin-left: auto; font-size: .8rem; color: var(--muted); }
-  main { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 3rem; }
-  .panel {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;
+  .brand-row { display: flex; align-items: center; gap: .7rem; max-width: 1200px; margin: 0 auto; }
+  .logo {
+    font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; white-space: nowrap;
   }
-  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
-  input[type=text], input[type=search], textarea, select {
+  .logo .te { color: var(--accent); }
+  .searchwrap {
+    flex: 1; display: flex; align-items: center; gap: .5rem;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 999px;
+    padding: .5rem .9rem; box-shadow: var(--shadow);
+  }
+  .searchwrap:focus-within { border-color: var(--accent); }
+  .searchwrap svg { flex: none; opacity: .5; }
+  #q {
+    flex: 1; border: 0; outline: 0; background: transparent; color: var(--text);
+    font-size: 1rem; min-width: 0;
+  }
+  #clear-q { background: none; color: var(--muted); font-size: 1.1rem; display: none; padding: 0 .1rem; }
+  .seg {
+    display: flex; background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 2px; flex: none;
+  }
+  .seg button {
+    background: none; color: var(--muted); border-radius: 999px; padding: .3rem .6rem; font-size: .95rem;
+  }
+  .seg button.on { background: var(--accent); color: #fff; }
+
+  /* ---------- category chips ---------- */
+  .cats {
+    display: flex; gap: .45rem; overflow-x: auto; padding: .55rem .2rem .5rem;
+    max-width: 1200px; margin: 0 auto; scrollbar-width: none;
+  }
+  .cats::-webkit-scrollbar { display: none; }
+  .cat {
+    flex: none; background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: .4rem .85rem; font-size: .9rem; color: var(--text);
+    white-space: nowrap; box-shadow: var(--shadow);
+  }
+  .cat.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  main { max-width: 1200px; margin: 0 auto; padding: .8rem 1rem 5rem; }
+  .section-title {
+    display: flex; align-items: baseline; gap: .6rem; margin: .9rem 0 .55rem;
+    font-size: 1.02rem; font-weight: 700;
+  }
+  .section-title .sub { font-weight: 400; color: var(--muted); font-size: .82rem; }
+  .section-title .back { margin-left: auto; background: none; color: var(--accent); font-size: .85rem; }
+
+  /* ---------- packs rail ---------- */
+  .packs {
+    display: flex; gap: .7rem; overflow-x: auto; padding-bottom: .4rem; scrollbar-width: none;
+  }
+  .packs::-webkit-scrollbar { display: none; }
+  .pack {
+    flex: none; width: 108px; text-align: center; cursor: pointer;
+  }
+  .pack img {
+    width: 96px; height: 96px; object-fit: cover; border-radius: 22px;
+    background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow);
+    transition: transform .15s;
+  }
+  .pack:hover img { transform: scale(1.06); }
+  .pack .pname {
+    font-size: .74rem; margin-top: .3rem; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pack .pcount { font-size: .68rem; color: var(--muted); }
+
+  /* ---------- masonry sticker grid ---------- */
+  #grid { column-count: 5; column-gap: .8rem; }
+  @media (max-width: 1100px) { #grid { column-count: 4; } }
+  @media (max-width: 860px)  { #grid { column-count: 3; } }
+  @media (max-width: 560px)  { #grid { column-count: 2; } }
+  .tile {
+    break-inside: avoid; margin-bottom: .8rem; position: relative; cursor: pointer;
+    border-radius: 18px; overflow: hidden; background: var(--card);
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    transition: transform .12s;
+  }
+  .tile:hover { transform: translateY(-2px) scale(1.015); }
+  .tile img { width: 100%; display: block; }
+  .tile .gif {
+    position: absolute; top: .5rem; left: .5rem; background: rgba(0,0,0,.55);
+    color: #fff; font-size: .62rem; font-weight: 700; padding: .1rem .4rem; border-radius: 6px;
+  }
+  .tile .quick {
+    position: absolute; right: .45rem; bottom: .45rem; background: rgba(0,0,0,.55);
+    color:#fff; border-radius: 999px; width: 30px; height: 30px; display: none;
+    align-items: center; justify-content: center; font-size: .95rem;
+  }
+  .tile:hover .quick { display: flex; }
+  #loadmore { display: block; margin: 1rem auto; background: var(--card); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 999px; padding: .55rem 1.4rem; }
+  .empty { text-align: center; color: var(--muted); padding: 3rem 0; }
+  .empty .big { font-size: 2.2rem; }
+
+  /* ---------- bottom sheet / dialog ---------- */
+  dialog#sheet {
+    border: 0; padding: 0; background: transparent; max-width: 460px; width: 94vw;
+  }
+  dialog#sheet::backdrop { background: rgba(0,0,0,.55); backdrop-filter: blur(2px); }
+  .sheet-card {
+    background: var(--sheet-bg); border-radius: 22px; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  @media (max-width: 560px) {
+    dialog#sheet {
+      margin: auto 0 0; max-width: none; width: 100vw;
+    }
+    .sheet-card { border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  }
+  .sheet-img { background: repeating-conic-gradient(var(--border) 0% 25%, transparent 0% 50%) 50%/24px 24px; text-align: center; }
+  .sheet-img img { max-width: 100%; max-height: 46vh; display: block; margin: 0 auto; }
+  .sheet-body { padding: .9rem 1rem 1.1rem; }
+  .sheet-meta { font-size: .85rem; color: var(--muted); margin-bottom: .25rem; }
+  .sheet-title { font-size: 1rem; font-weight: 700; margin-bottom: .15rem; min-height: 1.2em; }
+  .tagrow { display: flex; flex-wrap: wrap; gap: .35rem; margin: .4rem 0 .7rem; }
+  .tag { font-size: .72rem; background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: .15rem .6rem; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; }
+  .actions button {
+    display: flex; flex-direction: column; align-items: center; gap: .15rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: .6rem .2rem; color: var(--text); font-size: .78rem;
+  }
+  .actions button .ico { font-size: 1.25rem; }
+  .actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rate { display: flex; gap: .15rem; justify-content: center; margin-top: .7rem; font-size: 1.3rem; }
+  .rate span { cursor: pointer; filter: grayscale(1); opacity: .45; }
+  .rate span.on { filter: none; opacity: 1; }
+  .morelike { width: 100%; margin-top: .7rem; background: none; color: var(--accent);
+    border: 1px dashed var(--accent); border-radius: 12px; padding: .5rem; font-size: .85rem; }
+  details.editbox { margin-top: .8rem; border-top: 1px solid var(--border); padding-top: .6rem; }
+  details.editbox summary { color: var(--muted); font-size: .82rem; cursor: pointer; }
+  .editgrid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
+  .editgrid label { font-size: .72rem; color: var(--muted); display: flex; flex-direction: column; gap: .15rem; }
+  .editgrid label.wide { grid-column: 1 / -1; }
+  .editgrid input, .editgrid textarea {
     background: var(--bg); color: var(--text); border: 1px solid var(--border);
-    border-radius: 8px; padding: .55rem .8rem; font: inherit; min-width: 0;
+    border-radius: 8px; padding: .45rem .6rem; font: inherit;
   }
-  #q { flex: 1 1 260px; font-size: 1.05rem; }
-  button {
-    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
-    padding: .55rem 1rem; font: inherit; cursor: pointer;
+  .savebtn { grid-column: 1/-1; background: var(--accent); color: #fff; border-radius: 10px; padding: .55rem; }
+  .closex {
+    position: absolute; top: .6rem; right: .6rem; background: rgba(0,0,0,.5); color: #fff;
+    width: 32px; height: 32px; border-radius: 999px; font-size: 1rem; z-index: 2;
   }
-  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-  button:disabled { opacity: .5; cursor: default; }
-  .chips { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .6rem; }
-  .chip {
-    font-size: .8rem; padding: .2rem .7rem; border-radius: 99px;
-    border: 1px solid var(--border); cursor: pointer; user-select: none;
+
+  /* ---------- upload FAB + panel ---------- */
+  #fab {
+    position: fixed; right: 1.1rem; bottom: 1.2rem; z-index: 15;
+    width: 56px; height: 56px; border-radius: 999px; background: var(--accent); color: #fff;
+    font-size: 1.6rem; box-shadow: 0 4px 14px rgba(0,0,0,.3);
   }
-  .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  #grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 1rem;
+  dialog#upsheet { border: 0; border-radius: 20px; background: var(--sheet-bg); color: var(--text);
+    max-width: 420px; width: 92vw; padding: 1.1rem; }
+  dialog#upsheet::backdrop { background: rgba(0,0,0,.5); }
+  #upsheet input[type=text] { width: 100%; margin-top: .5rem; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; padding: .55rem .7rem; font: inherit; }
+  #upsheet .drop {
+    border: 2px dashed var(--border); border-radius: 14px; padding: 1.4rem; text-align: center;
+    color: var(--muted); cursor: pointer;
   }
-  .card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    overflow: hidden; cursor: pointer; display: flex; flex-direction: column;
+  #upsheet .drop.has { border-color: var(--accent); color: var(--accent); }
+  #upsheet .send { width: 100%; margin-top: .8rem; background: var(--accent); color: #fff;
+    border-radius: 12px; padding: .7rem; font-weight: 600; }
+  #upsheet progress { width: 100%; margin-top: .6rem; }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: fixed; left: 50%; bottom: 5.5rem; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg); border-radius: 999px; padding: .5rem 1.1rem;
+    font-size: .85rem; opacity: 0; pointer-events: none; transition: all .25s; z-index: 30;
   }
-  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-  .card .meta { padding: .5rem .7rem .7rem; font-size: .8rem; }
-  .card .cap {
-    color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical; overflow: hidden;
-  }
-  .card .score { color: var(--accent); font-weight: 600; }
-  .badge {
-    font-size: .7rem; padding: 0 .45rem; border-radius: 6px;
-    background: var(--accent-soft); color: var(--accent);
-  }
-  .muted { color: var(--muted); }
-  #status-msg { font-size: .85rem; margin-top: .5rem; }
-  progress { width: 100%; margin-top: .5rem; }
-  dialog {
-    background: var(--panel); color: var(--text); border: 1px solid var(--border);
-    border-radius: 14px; max-width: 720px; width: 92vw; padding: 1.2rem;
-  }
-  dialog::backdrop { background: rgba(0,0,0,.55); }
-  dialog img { max-width: 100%; max-height: 40vh; border-radius: 8px; display: block; margin: 0 auto .8rem; }
-  dialog form { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
-  dialog form label { font-size: .78rem; color: var(--muted); display: flex; flex-direction: column; gap: .2rem; }
-  dialog form label.wide { grid-column: 1 / -1; }
-  @media (max-width: 560px) { dialog form { grid-template-columns: 1fr; } }
-  .actions { grid-column: 1 / -1; display: flex; gap: .6rem; justify-content: flex-end; margin-top: .4rem; }
-  details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+  #toast.show { opacity: 1; transform: translateX(-50%); }
 </style>
 </head>
 <body>
+
 <header>
-  <h1>TFI-meme-banisa</h1>
-  <span class="sub">Telugu movie meme semantic search</span>
-  <span id="health">checking…</span>
+  <div class="brand-row">
+    <div class="logo">TFI meme <span class="te">బనిస</span></div>
+    <div class="searchwrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="q" type="search" enterkeyhint="search" autocomplete="off"
+             placeholder="Search a feeling, dialogue, actor…">
+      <button id="clear-q" aria-label="clear">✕</button>
+    </div>
+    <div class="seg" id="typeseg">
+      <button data-t="" class="on" title="All">All</button>
+      <button data-t="false" title="Static stickers">🖼</button>
+      <button data-t="true" title="Animated stickers">🎞</button>
+    </div>
+  </div>
+  <div class="cats" id="cats"></div>
 </header>
+
 <main>
-  <section class="panel">
-    <div class="row">
-      <input id="q" type="search" placeholder='Describe a scene… e.g. "sad scene", "చిరంజీవి కన్నీళ్లు", "ee jeevitham"' autofocus>
-      <button id="search-btn">Search</button>
-    </div>
-    <div class="chips" id="type-chips">
-      <span class="chip" data-type="static">🖼 static only</span>
-      <span class="chip" data-type="animated">🎞 animated only</span>
-    </div>
-    <div class="chips" id="emotion-chips"></div>
-    <div class="chips" id="actor-chips"></div>
-    <div id="search-info" class="muted" style="font-size:.8rem;margin-top:.4rem"></div>
-  </section>
-
-  <section class="panel">
-    <details id="upload-details">
-      <summary>➕ Upload a meme</summary>
-      <form id="upload-form" style="margin-top:.8rem">
-        <div class="row">
-          <input type="file" id="file" accept="image/jpeg,image/png,image/webp" required>
-          <input type="text" id="u-movie" placeholder="Movie (English)">
-          <input type="text" id="u-dialogue" placeholder="Dialogue (Telugu)">
-          <input type="text" id="u-actors" placeholder="Actors, comma-separated">
-          <input type="text" id="u-emotions" placeholder="Emotions, comma-separated">
-          <button type="submit">Upload</button>
-        </div>
-        <progress id="u-progress" max="100" value="0" hidden></progress>
-        <div id="status-msg"></div>
-      </form>
-    </details>
-  </section>
-
+  <div class="section-title" id="section-title">
+    <span id="st-label">✨ Fresh stickers</span><span class="sub" id="st-sub"></span>
+    <button class="back" id="st-back" hidden>← All stickers</button>
+  </div>
+  <div class="packs" id="packs"></div>
   <div id="grid"></div>
-  <p id="empty" class="muted" hidden>No memes found. Upload some!</p>
+  <div class="empty" id="empty" hidden><div class="big">🫥</div>No stickers found — try another word or upload your own!</div>
+  <button id="loadmore" hidden>Show more</button>
 </main>
 
-<dialog id="detail">
-  <img id="d-img" alt="meme">
-  <form id="edit-form">
-    <label>Movie (Telugu)<input type="text" name="movie_title_te"></label>
-    <label>Movie (English)<input type="text" name="movie_title_en"></label>
-    <label class="wide">Dialogue (Telugu)<textarea name="dialogue_te" rows="2"></textarea></label>
-    <label class="wide">Dialogue (English)<textarea name="dialogue_en" rows="2"></textarea></label>
-    <label>Dialogue (Roman)<input type="text" name="dialogue_roman"></label>
-    <label>Actors (comma-sep)<input type="text" name="actors"></label>
-    <label>Emotions (comma-sep)<input type="text" name="emotion_tags"></label>
-    <label>Context tags (comma-sep)<input type="text" name="context_tags"></label>
-    <label class="wide">Notes<textarea name="manual_notes" rows="2"></textarea></label>
-    <div class="wide muted" id="d-auto" style="font-size:.8rem"></div>
-    <div class="actions">
-      <button type="button" class="secondary" id="d-copy">Copy image</button>
-      <button type="button" class="secondary" id="d-close">Close</button>
-      <button type="submit">Save</button>
+<button id="fab" title="Upload a meme">＋</button>
+
+<!-- sticker detail sheet -->
+<dialog id="sheet">
+  <div class="sheet-card" style="position:relative">
+    <button class="closex" id="sheet-close">✕</button>
+    <div class="sheet-img"><img id="sh-img" alt="sticker"></div>
+    <div class="sheet-body">
+      <div class="sheet-title" id="sh-title"></div>
+      <div class="sheet-meta" id="sh-meta"></div>
+      <div class="tagrow" id="sh-tags"></div>
+      <div class="actions">
+        <button class="primary" id="a-copy"><span class="ico">📋</span>Copy</button>
+        <button id="a-share"><span class="ico">📤</span>Share</button>
+        <button id="a-save"><span class="ico">⬇️</span>Save</button>
+      </div>
+      <div class="rate" id="rate"></div>
+      <button class="morelike" id="a-morelike">✨ More like this</button>
+      <details class="editbox">
+        <summary>✏️ Edit details (dialogue, movie, tags)</summary>
+        <form class="editgrid" id="edit-form">
+          <label class="wide">Dialogue (Telugu)<textarea name="dialogue_te" rows="2"></textarea></label>
+          <label class="wide">Dialogue (English)<textarea name="dialogue_en" rows="1"></textarea></label>
+          <label>Movie<input name="movie_title_en"></label>
+          <label>Actors (comma)<input name="actors"></label>
+          <label>Emotions (comma)<input name="emotion_tags"></label>
+          <label>Tags (comma)<input name="context_tags"></label>
+          <button class="savebtn" type="submit">Save & mark verified</button>
+        </form>
+      </details>
     </div>
-  </form>
+  </div>
 </dialog>
+
+<!-- upload sheet -->
+<dialog id="upsheet">
+  <h3 style="margin:.1rem 0 .7rem">Upload a meme</h3>
+  <div class="drop" id="drop">Tap to choose an image<br><small>JPEG · PNG · WebP, up to 10 MB</small></div>
+  <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>
+  <input type="text" id="u-dialogue" placeholder="Dialogue (Telugu) — optional">
+  <input type="text" id="u-movie" placeholder="Movie — optional">
+  <input type="text" id="u-tags" placeholder="Tags: comedy, chiranjeevi — optional">
+  <button class="send" id="u-send">Upload</button>
+  <progress id="u-progress" max="100" value="0" hidden></progress>
+  <div id="u-msg" style="font-size:.85rem;margin-top:.4rem;color:var(--muted)"></div>
+</dialog>
+
+<div id="toast"></div>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -157,165 +294,219 @@ const api = (path, opts) => fetch(path, opts).then(async (r) => {
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   return r.json();
 });
-const state = { emotions: new Set(), actors: new Set(), animated: null, current: null };
+const toast = (msg) => {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800);
+};
 
-// --- static/animated toggle ----------------------------------------------
-document.querySelectorAll('#type-chips .chip').forEach((c) => {
-  c.onclick = () => {
-    const want = c.dataset.type === 'animated';
-    state.animated = state.animated === want ? null : want;
-    document.querySelectorAll('#type-chips .chip').forEach((x) =>
-      x.classList.toggle('on', state.animated === (x.dataset.type === 'animated')));
-    $('#q').value.trim() ? doSearch() : browse();
+// Categories are semantic searches — powered by the embedding engine.
+const CATS = [
+  ['🔥', 'Trending', null],
+  ['😂', 'Comedy', 'funny laughing comedy'],
+  ['😢', 'Sad', 'sad crying tears emotional'],
+  ['😡', 'Angry', 'angry shouting rage fight'],
+  ['❤️', 'Love', 'love romantic heart'],
+  ['🎉', 'Party', 'celebration dance party'],
+  ['🙏', 'Greetings', 'namaste greeting wishes thank you'],
+  ['🎂', 'Birthday', 'birthday wishes cake'],
+  ['😲', 'Shock', 'shocked surprised omg'],
+  ['🤔', 'Confused', 'thinking confused doubt'],
+  ['👍', 'Super', 'thumbs up ok super approve'],
+];
+
+const state = { animated: null, cat: 'Trending', pack: null, offset: 0, mode: 'browse', memes: [], current: null };
+
+// ---------- header controls ----------
+document.querySelectorAll('#typeseg button').forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll('#typeseg button').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+    state.animated = b.dataset.t === '' ? null : b.dataset.t === 'true';
+    refresh();
   };
 });
-
-// --- health ---------------------------------------------------------------
-api('/health').then((h) => {
-  const parts = [];
-  parts.push(h.qdrant.collection_ready ? 'qdrant ✓' : 'qdrant ✗');
-  parts.push(h.models.embedding.cached ? 'embed ✓' : 'embed ✗');
-  parts.push(h.models.caption.cached ? 'caption ✓' : 'caption ✗');
-  parts.push(h.models.ocr.available ? 'ocr ✓' : 'ocr ✗');
-  $('#health').textContent = parts.join(' · ');
-}).catch(() => { $('#health').textContent = 'server unreachable'; });
-
-// --- filters --------------------------------------------------------------
-async function loadFilters() {
-  const [em, ac] = await Promise.all([api('/api/emotions'), api('/api/actors')]);
-  renderChips($('#emotion-chips'), em.emotions, state.emotions);
-  renderChips($('#actor-chips'), ac.actors, state.actors);
-}
-function renderChips(el, values, set) {
-  el.innerHTML = '';
-  for (const v of values) {
-    const c = document.createElement('span');
-    c.className = 'chip' + (set.has(v) ? ' on' : '');
-    c.textContent = v;
-    c.onclick = () => { set.has(v) ? set.delete(v) : set.add(v); c.classList.toggle('on'); doSearch(); };
-    el.appendChild(c);
-  }
-}
-
-// --- search / browse ------------------------------------------------------
-let debounceTimer;
+let deb;
 $('#q').addEventListener('input', () => {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(doSearch, 300);
+  $('#clear-q').style.display = $('#q').value ? 'block' : 'none';
+  clearTimeout(deb); deb = setTimeout(refresh, 300);
 });
-$('#search-btn').onclick = doSearch;
+$('#clear-q').onclick = () => { $('#q').value = ''; $('#clear-q').style.display = 'none'; refresh(); };
 
-async function doSearch() {
+// ---------- category chips ----------
+const catsEl = $('#cats');
+for (const [emoji, name] of CATS) {
+  const c = document.createElement('button');
+  c.className = 'cat' + (name === state.cat ? ' on' : '');
+  c.textContent = `${emoji} ${name}`;
+  c.dataset.name = name;
+  c.onclick = () => {
+    state.cat = name; state.pack = null; $('#q').value = '';
+    document.querySelectorAll('.cat').forEach((x) => x.classList.toggle('on', x.dataset.name === name));
+    refresh();
+  };
+  catsEl.appendChild(c);
+}
+
+// ---------- data loading ----------
+async function refresh() {
+  state.offset = 0; state.memes = [];
   const q = $('#q').value.trim();
-  if (!q) return browse();
-  const body = { query: q, limit: 24 };
-  if (state.emotions.size) body.emotions = [...state.emotions];
-  if (state.actors.size) body.actors = [...state.actors];
-  if (state.animated !== null) body.animated = state.animated;
-  try {
-    const res = await api('/api/memes/search', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const info = [`${res.results.length} results in ${res.duration_ms} ms`];
-    if (res.query_telugu) info.push(`searched as “${res.query_telugu}”`);
-    $('#search-info').textContent = info.join(' · ');
-    renderGrid(res.results.map((r) => ({ ...r.meme, _score: r.score, _reasons: r.reasons })));
-  } catch (e) { $('#search-info').textContent = 'search failed: ' + e.message; }
-}
+  const catQuery = (CATS.find((c) => c[1] === state.cat) || [])[2];
+  $('#st-back').hidden = !state.pack;
+  $('#packs').style.display = (q || state.pack || state.cat !== 'Trending') ? 'none' : 'flex';
 
-async function browse() {
-  $('#search-info').textContent = '';
-  const extra = state.animated === null ? '' : `&animated=${state.animated}`;
-  const res = await api('/api/memes?limit=48' + extra);
-  renderGrid(res.memes);
-}
-
-function renderGrid(memes) {
-  const grid = $('#grid');
-  grid.innerHTML = '';
-  $('#empty').hidden = memes.length > 0;
-  for (const m of memes) {
-    const card = document.createElement('div');
-    card.className = 'card';
-    const cap = m.dialogue_te || m.caption || m.dialogue_en || '';
-    card.innerHTML = `
-      <img src="${m.image_url}" alt="" loading="lazy">
-      <div class="meta">
-        ${m._score ? `<span class="score">${(m._reasons?.vector_score ?? m._score).toFixed(3)}</span> ` : ''}
-        ${m.verified ? '<span class="badge">verified</span> ' : ''}
-        <span>${m.movie_title_en || ''}</span>
-        <div class="cap">${cap}</div>
-      </div>`;
-    card.onclick = () => openDetail(m.id);
-    grid.appendChild(card);
-  }
-}
-
-// --- upload ---------------------------------------------------------------
-$('#upload-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const file = $('#file').files[0];
-  if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  if ($('#u-movie').value) fd.append('movie_title_en', $('#u-movie').value);
-  if ($('#u-dialogue').value) fd.append('dialogue_te', $('#u-dialogue').value);
-  if ($('#u-actors').value) fd.append('actors', $('#u-actors').value);
-  if ($('#u-emotions').value) fd.append('emotion_tags', $('#u-emotions').value);
-  const msg = $('#status-msg'); const bar = $('#u-progress');
-  msg.textContent = 'Uploading…'; bar.hidden = false; bar.value = 0;
-  try {
-    const res = await api('/api/memes/upload', { method: 'POST', body: fd });
-    msg.textContent = res.duplicate ? 'Already uploaded — reprocessing…' : 'Processing (caption, OCR, embedding)…';
-    pollStatus(res.meme.id, msg, bar);
-  } catch (err) {
-    msg.textContent = 'Upload failed: ' + err.message; bar.hidden = true;
-  }
-});
-
-function pollStatus(id, msg, bar) {
-  const t = setInterval(async () => {
+  if (state.pack) {
+    state.mode = 'pack';
+    $('#st-label').textContent = `📦 ${state.pack}`;
+    await loadPage();
+  } else if (q || catQuery) {
+    state.mode = 'search';
+    $('#st-label').textContent = q ? `Results for “${q}”` : `${state.cat} stickers`;
+    const body = { query: q || catQuery, limit: 40 };
+    if (state.animated !== null) body.animated = state.animated;
     try {
-      const s = await api(`/api/memes/${id}/status`);
-      bar.value = s.progress;
-      if (s.status === 'done') {
-        clearInterval(t); bar.hidden = true;
-        msg.textContent = s.errors.length ? '⚠ Done with errors: ' + s.errors.join('; ') : '✓ Meme processed and searchable';
-        $('#upload-form').reset();
-        browse(); loadFilters();
-      }
-    } catch { clearInterval(t); }
-  }, 500);
+      const res = await api('/api/memes/search', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      state.memes = res.results.map((r) => r.meme);
+      $('#st-sub').textContent = res.query_telugu ? `searched as “${res.query_telugu}”` : `${res.duration_ms} ms`;
+      renderGrid(true);
+      $('#loadmore').hidden = true;
+    } catch (e) { toast('Search failed: ' + e.message); }
+  } else {
+    state.mode = 'browse';
+    $('#st-label').textContent = '✨ Fresh stickers';
+    $('#st-sub').textContent = '';
+    await loadPage();
+    loadPacks();
+  }
 }
 
-// --- detail / edit --------------------------------------------------------
+async function loadPage() {
+  let url = `/api/memes?limit=40&offset=${state.offset}`;
+  if (state.animated !== null) url += `&animated=${state.animated}`;
+  if (state.pack) url += `&pack=${encodeURIComponent(state.pack)}`;
+  const res = await api(url);
+  state.memes = state.memes.concat(res.memes);
+  if (state.mode !== 'search') $('#st-sub').textContent = `${res.total} stickers`;
+  renderGrid(state.offset === 0);
+  state.offset += 40;
+  $('#loadmore').hidden = state.memes.length >= res.total;
+}
+$('#loadmore').onclick = loadPage;
+$('#st-back').onclick = () => { state.pack = null; refresh(); };
+
+async function loadPacks() {
+  const { packs } = await api('/api/packs?limit=30');
+  const el = $('#packs'); el.innerHTML = '';
+  for (const p of packs) {
+    const d = document.createElement('div');
+    d.className = 'pack';
+    d.innerHTML = `<img src="${p.cover_url}" loading="lazy" alt="">
+      <div class="pname">${p.name}</div><div class="pcount">${p.count} stickers</div>`;
+    d.onclick = () => { state.pack = p.name; refresh(); };
+    el.appendChild(d);
+  }
+}
+
+function renderGrid(reset) {
+  const grid = $('#grid');
+  if (reset) grid.innerHTML = '';
+  $('#empty').hidden = state.memes.length > 0;
+  const start = reset ? 0 : grid.children.length;
+  for (const m of state.memes.slice(start)) {
+    const t = document.createElement('div');
+    t.className = 'tile';
+    t.innerHTML = `<img src="${m.image_url}" loading="lazy" alt="">
+      ${m.animated ? '<span class="gif">GIF</span>' : ''}
+      <button class="quick" title="Copy">📋</button>`;
+    t.querySelector('img').onclick = () => openSheet(m);
+    t.querySelector('.quick').onclick = (e) => { e.stopPropagation(); copyImage(m); };
+    grid.appendChild(t);
+  }
+}
+
+// ---------- sticker actions ----------
+async function imgBlob(m) { return (await fetch(m.image_url)).blob(); }
+async function asPngBlob(m) {
+  // Clipboard API accepts PNG; stickers are webp — convert via canvas.
+  const bmp = await createImageBitmap(await imgBlob(m));
+  const c = Object.assign(document.createElement('canvas'), { width: bmp.width, height: bmp.height });
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  return new Promise((res) => c.toBlob(res, 'image/png'));
+}
+async function copyImage(m) {
+  try {
+    const blob = await asPngBlob(m);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('Copied! Paste it anywhere 📋');
+  } catch { toast('Copy not supported here — use Save'); }
+}
+async function shareImage(m) {
+  try {
+    const blob = await imgBlob(m);
+    const file = new File([blob], 'sticker.webp', { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file] });
+    } else { toast('Sharing not supported on this device'); }
+  } catch (e) { if (e.name !== 'AbortError') toast('Share failed'); }
+}
+function saveImage(m) {
+  const a = document.createElement('a');
+  a.href = m.image_url; a.download = `tfi-meme-${m.id}.webp`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ---------- detail sheet ----------
 const listFields = ['actors', 'emotion_tags', 'context_tags'];
-async function openDetail(id) {
-  const { meme } = await api(`/api/memes/${id}`);
-  state.current = meme;
-  $('#d-img').src = meme.image_url;
+function openSheet(m) {
+  state.current = m;
+  $('#sh-img').src = m.image_url;
+  $('#sh-title').textContent = m.dialogue_te || m.dialogue_en || '';
+  const meta = [];
+  if (m.movie_title_en) meta.push(`🎬 ${m.movie_title_en}`);
+  if ((m.context_tags || [])[0]) meta.push(`📦 ${m.context_tags[0]}`);
+  $('#sh-meta').textContent = meta.join('  ·  ');
+  const tags = $('#sh-tags'); tags.innerHTML = '';
+  for (const a of (m.actors || [])) tags.insertAdjacentHTML('beforeend', `<span class="tag">⭐ ${a}</span>`);
+  for (const e of (m.emotion_tags || [])) tags.insertAdjacentHTML('beforeend', `<span class="tag">${e}</span>`);
+  if (m.verified) tags.insertAdjacentHTML('beforeend', `<span class="tag">✔ verified</span>`);
+  renderStars(m.rating || 0);
   const f = $('#edit-form');
   for (const el of f.elements) {
     if (!el.name) continue;
-    const v = meme[el.name];
+    const v = m[el.name];
     el.value = listFields.includes(el.name) ? (v || []).join(', ') : (v || '');
   }
-  $('#d-auto').textContent =
-    (meme.caption ? `Auto-caption: ${meme.caption}` : '') +
-    (meme.ocr_raw ? `  |  OCR: ${meme.ocr_raw}` : '');
-  $('#detail').showModal();
+  f.parentElement.open = false;
+  $('#sheet').showModal();
 }
-$('#d-close').onclick = () => $('#detail').close();
-$('#d-copy').onclick = async () => {
-  const resp = await fetch(state.current.image_url);
-  const blob = await resp.blob();
-  try {
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    $('#d-copy').textContent = 'Copied!';
-    setTimeout(() => { $('#d-copy').textContent = 'Copy image'; }, 1500);
-  } catch { window.open(state.current.image_url, '_blank'); }
+$('#sheet-close').onclick = () => $('#sheet').close();
+$('#sheet').onclick = (e) => { if (e.target === $('#sheet')) $('#sheet').close(); };
+$('#a-copy').onclick = () => copyImage(state.current);
+$('#a-share').onclick = () => shareImage(state.current);
+$('#a-save').onclick = () => saveImage(state.current);
+$('#a-morelike').onclick = () => {
+  const m = state.current;
+  $('#sheet').close();
+  $('#q').value = m.dialogue_te || m.caption || m.dialogue_en || '';
+  refresh();
 };
+function renderStars(n) {
+  const r = $('#rate'); r.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    const s = document.createElement('span');
+    s.textContent = '⭐'; s.className = i <= n ? 'on' : '';
+    s.onclick = async () => {
+      await api(`/api/memes/${state.current.id}/rate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: i }),
+      });
+      state.current.rating = i; renderStars(i); toast('Rated ⭐'.repeat(1));
+    };
+    r.appendChild(s);
+  }
+}
 $('#edit-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = {};
@@ -325,16 +516,53 @@ $('#edit-form').addEventListener('submit', async (e) => {
       ? el.value.split(',').map((s) => s.trim()).filter(Boolean)
       : (el.value || null);
   }
-  await api(`/api/memes/${state.current.id}/edit`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  $('#detail').close();
-  browse(); loadFilters();
+  try {
+    await api(`/api/memes/${state.current.id}/edit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    toast('Saved ✔ — re-indexing');
+    $('#sheet').close();
+  } catch (err) { toast('Save failed: ' + err.message); }
 });
 
-browse();
-loadFilters();
+// ---------- upload ----------
+$('#fab').onclick = () => $('#upsheet').showModal();
+$('#drop').onclick = () => $('#file').click();
+$('#file').onchange = () => {
+  const f = $('#file').files[0];
+  $('#drop').classList.toggle('has', !!f);
+  if (f) $('#drop').innerHTML = `✔ ${f.name}`;
+};
+$('#u-send').onclick = async () => {
+  const f = $('#file').files[0];
+  if (!f) return toast('Pick an image first');
+  const fd = new FormData();
+  fd.append('file', f);
+  if ($('#u-dialogue').value) fd.append('dialogue_te', $('#u-dialogue').value);
+  if ($('#u-movie').value) fd.append('movie_title_en', $('#u-movie').value);
+  if ($('#u-tags').value) fd.append('context_tags', $('#u-tags').value);
+  const bar = $('#u-progress'), msg = $('#u-msg');
+  bar.hidden = false; bar.value = 10; msg.textContent = 'Uploading…';
+  try {
+    const res = await api('/api/memes/upload', { method: 'POST', body: fd });
+    msg.textContent = 'Auto-tagging (caption · OCR · index)…';
+    const id = res.meme.id;
+    const h = setInterval(async () => {
+      const s = await api(`/api/memes/${id}/status`).catch(() => null);
+      if (!s) return clearInterval(h);
+      bar.value = s.progress;
+      if (s.status === 'done') {
+        clearInterval(h); bar.hidden = true;
+        msg.textContent = ''; $('#upsheet').close(); toast('Sticker added ✔');
+        $('#file').value = ''; $('#drop').classList.remove('has');
+        $('#drop').innerHTML = 'Tap to choose an image<br><small>JPEG · PNG · WebP, up to 10 MB</small>';
+        refresh();
+      }
+    }, 600);
+  } catch (e) { msg.textContent = 'Upload failed: ' + e.message; bar.hidden = true; }
+};
+
+refresh();
 </script>
 </body>
 </html>

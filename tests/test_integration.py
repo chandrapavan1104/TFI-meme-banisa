@@ -145,3 +145,14 @@ def test_upload_size_limit(client, monkeypatch):
         "/api/memes/upload", files={"file": ("big.png", data, "image/png")}
     )
     assert r.status_code == 413
+
+
+def test_packs_endpoint(client):
+    r = upload(client, seed=40, context_tags="Comedy Pack")
+    upload(client, seed=41, context_tags="Comedy Pack")
+    wait_done(client, r.json()["meme"]["id"])
+    packs = client.get("/api/packs").json()["packs"]
+    assert packs and packs[0]["name"] == "Comedy Pack" and packs[0]["count"] == 2
+    assert packs[0]["cover_url"].startswith("/images/")
+    listed = client.get("/api/memes?pack=Comedy%20Pack").json()
+    assert listed["total"] == 2
