@@ -22,17 +22,22 @@ Combines **image captioning** (Florence-2) + **OCR** (Tesseract, Telugu) + **mul
 - **Optional:** Ollama (local model serving).
 
 ## Architecture / Key Files
-**Planned (during implementation):**
-- `config.py` — environment config (paths, model names, Qdrant URL).
-- `server/app.py` — FastAPI server with `/api/memes/*` endpoints.
-- `server/qdrant_client.py` — Qdrant wrapper (search, upsert, schema).
-- `collectors/captions.py` — Florence-2 image captioning.
-- `collectors/ocr.py` — Tesseract OCR for Telugu text.
-- `collectors/embeddings.py` — Vyakyarth-1-Indic text embedding.
-- `db/schema.py` — SQLite schema for metadata + meme records.
-- `static/index.html` — web UI (upload, search, edit).
-- `scripts/setup.sh` — environment + Docker initialization.
-- `tests/` — unit + integration tests.
+- `config.py` — env config (paths, models, Qdrant mode/URL, server, jobs).
+- `server/app.py` — FastAPI server: upload/search/edit/list/status endpoints, static UI.
+- `server/qdrant_store.py` — Qdrant wrapper (client, upsert, filtered search). Named
+  `qdrant_store` (not `qdrant_client`) to avoid shadowing the pip package.
+- `server/qdrant_schema.py` — collection schema (3 named 768-dim vectors, payload indexes).
+- `server/jobs.py` — asyncio job queue (CAPTION/OCR/EMBED/RE_EMBED, retries, status).
+- `server/search.py` — hybrid search: vector + BM25, RRF merge, verified/rating boost.
+- `collectors/captions.py` — Florence-2 captioning (flash_attn patched out for macOS).
+- `collectors/ocr.py` — Tesseract Telugu OCR (tries both polarities for light-on-dark text).
+- `collectors/embeddings.py` — Vyakyarth-1-Indic embeddings (lazy-loaded, 768-dim).
+- `utils/transliterate.py` — Roman Telugu → native script (ITRANS).
+- `db/schema.py` + `db/init.py` + `db/store.py` — SQLite schema/migrations + locked CRUD
+  (one shared connection; all access serialized through a store-level RLock).
+- `static/index.html` — web UI (upload w/ progress, live search, filters, edit modal, dark mode).
+- `scripts/` — setup.sh, run.sh, start-qdrant.sh (optional Docker), launchd service installer.
+- `tests/` — 32 unit + integration tests (real embedded Qdrant, fake or real models).
 
 ## Conventions
 - Match Code-as-a-chat style: concise module docstrings, small focused modules.
@@ -42,19 +47,55 @@ Combines **image captioning** (Florence-2) + **OCR** (Tesseract, Telugu) + **mul
 - Test-first for critical paths (search accuracy, metadata integrity).
 
 ## Current State
-**Bootstrap phase.** Repository created, no code yet. Research report complete
-(telugu-meme-store-research.md in Code-as-a-chat repo provides full design).
+**Phases 1–5 implemented and verified live** (2026-08-18, Apple M4). All 32 tests
+pass. Server runs with embedded Qdrant (no Docker needed); models downloaded and
+cached; Tesseract + Telugu data installed. End-to-end verified: upload → auto
+caption/OCR/embed → hybrid search (native Telugu, Roman transliteration, English
+semantic, filters) all ranking correctly in <250 ms.
 
-Ready to begin **Phase 1: Setup** (Docker, environment, database schema).
+Key implementation decisions:
+- Qdrant **embedded mode** by default (`QdrantClient(path=...)`) since Docker isn't
+  installed; `QDRANT_MODE=server` + docker-compose.yml available but untested.
+- One Qdrant point per meme with three optional named vectors (dialogue_te,
+  dialogue_en, caption); search queries all three, merges by max score.
+- Search = Qdrant vector search (payload-filtered) + SQLite FTS5 BM25, merged with
+  RRF (k=60), + small verified/rating boosts.
+- OCR'd Telugu text is auto-promoted to `dialogue_te` when dialogue is empty.
+- Benchmarks (M4): embed 11 ms, OCR 175 ms, caption ~700 ms (<DETAILED_CAPTION>),
+  vector search @500 memes ~2 ms.
 
 ## Changelog (most recent first)
+- 2026-08-19 (later) — Static meme expansion: collection now 3,018 (2,076 static
+  image memes / 942 animated), all processed, 0 job errors. New `animated` flag
+  (schema v2, detected via PIL at upload, backfilled) with filters in list/search
+  APIs and 🖼/🎞 toggle chips in the UI. Static-only fetch pulled 1,000 memes from
+  42 packs using meme/comedian/Telugu-script keywords. Reddit (OAuth-only) and
+  archive.org (no content) ruled out as extra sources.
+- 2026-08-19 — Big fetch: collection now 2,018 stickers (all captioned + embedded;
+  OCR text in 495, Telugu dialogue in 214; 6,063 jobs, 0 errors after recovering
+  105 OCR jobs that failed under launchd's default PATH). Deployment: user installed
+  the launchd service (com.tfibanisa.server, PORT=8010 via .env, plist carries a
+  Homebrew PATH fix so tesseract resolves). Tailscale Serve: :443 → port 8000
+  (user's Code-as-a-Chat app), :8010 → this store, :8443 → 8787. Phone URL:
+  https://chandras-mac-mini.tailae1358.ts.net:8010
+- 2026-08-18 (later) — Online sticker ingestion: `scripts/fetch_stickers.py` pulls
+  public Telugu packs from sticker.ly's app API (search by movie/actor keywords,
+  pack metadata inference, sha256 dedupe, resumable state in ~/.tfibanisa/
+  fetch_state.json, source attribution in manual_notes). Upload endpoint now
+  accepts context_tags/manual_notes; unfinished jobs are re-enqueued on server
+  startup. NOT fetchable: Sticker Babai (app-only private backend, no public
+  catalog) and Pinterest (403 without login; scraping violates their ToS).
+- 2026-08-18 — Full implementation of Phases 1–5: config, SQLite schema/store,
+  embedded Qdrant, FastAPI endpoints, async job queue, Florence-2 captioning,
+  Tesseract Telugu OCR (dual-polarity), Vyakyarth embeddings, transliteration,
+  hybrid RRF search, web UI, 32 tests, docs (README/SETUP/USAGE), launchd scripts.
+  Verified live with real models + 3 sample Telugu memes.
 - 2026-08-17 — Project initialized; research report completed. Tasks created for
   implementation (64–104 hours estimated).
 
 ## TODO / Next Steps
-See `tasks.md` for detailed implementation roadmap (Phases 1–5, ~3 weeks).
-
-**Immediate priorities:**
-1. Phase 1: Environment setup + Qdrant + database schema (4–8 hrs).
-2. Phase 2: Core API endpoints (16–24 hrs).
-3. Phase 3: Auto-tagging pipeline (12–16 hrs).
+Remaining from `tasks.md` (see status notes there): Docker/Qdrant-server path
+untested (1.2.3–1.2.4), OCR accuracy on a large real meme set unmeasured (3.2.3),
+launchd service not yet installed/reboot-tested (5.6.3 — `./scripts/install-service.sh`).
+Then: upload a real meme collection and tune search quality. Post-MVP ideas in tasks.md
+(image-based search, emotion classifier, Telegram bot).
