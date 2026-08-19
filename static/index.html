@@ -226,6 +226,7 @@
     </div>
   </div>
   <div class="cats" id="cats"></div>
+  <div class="cats" id="actor-chips" style="padding-top:0"></div>
 </header>
 
 <main>
@@ -314,7 +315,26 @@ const CATS = [
   ['👍', 'Super', 'thumbs up ok super approve'],
 ];
 
-const state = { animated: null, cat: 'Trending', pack: null, offset: 0, mode: 'browse', memes: [], current: null };
+const state = { animated: null, cat: 'Trending', actor: null, pack: null, offset: 0, mode: 'browse', memes: [], current: null };
+
+// ---------- actor chips (face-recognition tags) ----------
+async function loadActorChips() {
+  const { actors } = await api('/api/actors');
+  const el = $('#actor-chips'); el.innerHTML = '';
+  for (const a of actors) {
+    const c = document.createElement('button');
+    c.className = 'cat' + (state.actor === a ? ' on' : '');
+    c.textContent = `⭐ ${a}`;
+    c.onclick = () => {
+      state.actor = state.actor === a ? null : a;
+      state.pack = null;
+      document.querySelectorAll('#actor-chips .cat').forEach((x) =>
+        x.classList.toggle('on', x.textContent === `⭐ ${state.actor}`));
+      refresh();
+    };
+    el.appendChild(c);
+  }
+}
 
 // ---------- header controls ----------
 document.querySelectorAll('#typeseg button').forEach((b) => {
@@ -353,16 +373,19 @@ async function refresh() {
   const q = $('#q').value.trim();
   const catQuery = (CATS.find((c) => c[1] === state.cat) || [])[2];
   $('#st-back').hidden = !state.pack;
-  $('#packs').style.display = (q || state.pack || state.cat !== 'Trending') ? 'none' : 'flex';
+  $('#packs').style.display = (q || state.pack || state.actor || state.cat !== 'Trending') ? 'none' : 'flex';
 
   if (state.pack) {
     state.mode = 'pack';
     $('#st-label').textContent = `📦 ${state.pack}`;
     await loadPage();
-  } else if (q || catQuery) {
+  } else if (q || catQuery || state.actor) {
     state.mode = 'search';
-    $('#st-label').textContent = q ? `Results for “${q}”` : `${state.cat} stickers`;
-    const body = { query: q || catQuery, limit: 40 };
+    $('#st-label').textContent = state.actor && !q
+      ? `⭐ ${state.actor}`
+      : (q ? `Results for “${q}”` : `${state.cat} stickers`);
+    const body = { query: q || (state.actor ? state.actor : catQuery), limit: 40 };
+    if (state.actor) body.actors = [state.actor];
     if (state.animated !== null) body.animated = state.animated;
     try {
       const res = await api('/api/memes/search', {
@@ -563,6 +586,7 @@ $('#u-send').onclick = async () => {
 };
 
 refresh();
+loadActorChips();
 </script>
 </body>
 </html>

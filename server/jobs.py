@@ -22,7 +22,7 @@ from utils.transliterate import contains_telugu
 
 log = logging.getLogger(__name__)
 
-CAPTION, OCR, EMBED, RE_EMBED = "CAPTION", "OCR", "EMBED", "RE_EMBED"
+CAPTION, OCR, FACE, EMBED, RE_EMBED = "CAPTION", "OCR", "FACE", "EMBED", "RE_EMBED"
 
 
 @dataclass
@@ -69,8 +69,17 @@ class JobQueue:
         return job_id
 
     def enqueue_pipeline(self, meme_id: str) -> list[int]:
-        """Full auto-tagging pipeline for a newly uploaded meme."""
-        return [self.enqueue(meme_id, t) for t in (CAPTION, OCR, EMBED)]
+        """Full auto-tagging pipeline for a newly uploaded meme.
+
+        FACE is included only when face references exist (build_face_refs.py).
+        """
+        steps = [CAPTION, OCR]
+        from collectors import faces  # deferred: optional dependency
+
+        if faces.is_available() and faces.refs_available():
+            steps.append(FACE)
+        steps.append(EMBED)
+        return [self.enqueue(meme_id, t) for t in steps]
 
     def requeue_unfinished(self) -> int:
         """Re-enqueue jobs left PENDING/RUNNING by a previous server run."""
@@ -94,6 +103,7 @@ class JobQueue:
         handler = {
             CAPTION: self._do_caption,
             OCR: self._do_ocr,
+            FACE: self._do_face,
             EMBED: self._do_embed,
             RE_EMBED: self._do_embed,
         }[job.job_type]
@@ -139,6 +149,21 @@ class JobQueue:
         if text and contains_telugu(text) and not (meme.get("dialogue_te") or "").strip():
             fields["dialogue_te"] = " ".join(text.split())
         store.update_metadata(self.conn, meme_id, fields)
+
+    def _do_face(self, meme_id: str) -> None:
+        from collectors import faces
+
+        if not (faces.is_available() and faces.refs_available()):
+            return  # optional feature not configured; not an error
+        embeddings = faces.face_embeddings(self._image_path(meme_id))
+        if not embeddings:
+            return
+        matched = faces.match_actors(embeddings, faces.load_refs())
+        if not matched:
+            return
+        meme = store.get_meme(self.conn, meme_id)
+        merged = sorted(set(meme.get("actors") or []) | set(matched))
+        store.update_metadata(self.conn, meme_id, {"actors": merged})
 
     def _do_embed(self, meme_id: str) -> None:
         meme = store.get_meme(self.conn, meme_id)

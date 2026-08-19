@@ -287,6 +287,26 @@ def edit_meme(request: Request, meme_id: str, body: EditRequest):
     return {"meme": _meme_out(meme)}
 
 
+class AutoTagRequest(BaseModel):
+    actors: list[str]
+
+
+@app.post("/api/memes/{meme_id}/auto_tag")
+def auto_tag_meme(request: Request, meme_id: str, body: AutoTagRequest):
+    """Merge auto-detected actors (face recognition) into a meme.
+
+    Unlike /edit this never removes tags and never marks the meme verified.
+    """
+    meme = _get_or_404(request, meme_id)
+    merged = sorted(set(meme["actors"]) | set(body.actors))
+    if merged != sorted(meme["actors"]):
+        meme = store.update_metadata(
+            request.app.state.conn, meme_id, {"actors": merged}
+        )
+        request.app.state.jobs.enqueue(meme_id, jobs_mod.RE_EMBED)
+    return {"meme": _meme_out(meme)}
+
+
 class RateRequest(BaseModel):
     rating: int = Field(ge=1, le=5)
 

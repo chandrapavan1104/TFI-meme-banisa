@@ -71,3 +71,16 @@ notes — **Save** persists everything, re-embeds the meme, and marks it
    filter chips.
 4. Check `/api/analytics/top_queries` to see what you search for most, and
    curate those memes first.
+
+## Actor tagging (face recognition)
+
+Every upload is scanned for faces and matched against reference faces of ~21
+Telugu actors; confident matches are added to the meme's actors automatically
+(a meme with several people gets several tags). Tap a ⭐ actor chip to browse
+one actor's stickers. To (re)build references or re-sweep the collection:
+
+```bash
+.venv/bin/python scripts/build_face_refs.py     # Wikipedia portraits + bootstrap
+.venv/bin/python scripts/face_tag.py --dry-run  # preview matches
+.venv/bin/python scripts/face_tag.py            # apply tags
+```

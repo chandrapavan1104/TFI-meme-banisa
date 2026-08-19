@@ -156,3 +156,19 @@ def test_packs_endpoint(client):
     assert packs[0]["cover_url"].startswith("/images/")
     listed = client.get("/api/memes?pack=Comedy%20Pack").json()
     assert listed["total"] == 2
+
+
+def test_auto_tag_merges_actors(client):
+    r = upload(client, seed=50, actors="Chiranjeevi")
+    meme_id = r.json()["meme"]["id"]
+    wait_done(client, meme_id)
+    out = client.post(
+        f"/api/memes/{meme_id}/auto_tag", json={"actors": ["Brahmanandam"]}
+    ).json()["meme"]
+    assert out["actors"] == ["Brahmanandam", "Chiranjeevi"]  # merged, not replaced
+    assert not out["verified"]  # auto-tagging never marks verified
+    # No-op merge enqueues nothing new and keeps tags stable.
+    out2 = client.post(
+        f"/api/memes/{meme_id}/auto_tag", json={"actors": ["Chiranjeevi"]}
+    ).json()["meme"]
+    assert out2["actors"] == ["Brahmanandam", "Chiranjeevi"]

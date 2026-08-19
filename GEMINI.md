@@ -65,6 +65,14 @@ Key implementation decisions:
   vector search @500 memes ~2 ms.
 
 ## Changelog (most recent first)
+- 2026-08-19 (night) — Actor segregation via face recognition: InsightFace
+  (buffalo_l ArcFace) in collectors/faces.py; per-actor references from
+  Wikipedia portraits + in-domain bootstrap (scripts/build_face_refs.py, 21
+  actors, refs in ~/.tfibanisa/face_refs.json); full-collection sweep
+  (scripts/face_tag.py) tagged 896 memes with 932 matches (36 multi-actor,
+  0 errors, threshold 0.38, one identity per face — best match only).
+  New POST /api/memes/{id}/auto_tag (merge-only, never marks verified),
+  FACE job in the upload pipeline, ⭐ actor chips in the UI.
 - 2026-08-19 (evening) — End-user UI redesign modeled on sticker stores
   (sticker.ly/Sticker Babai): sticky rounded search + All/🖼/🎞 segmented control,
   emoji category chips that run semantic searches (Comedy/Sad/Angry/Love/...),
